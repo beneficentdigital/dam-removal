@@ -42,17 +42,23 @@ constitution principle 3.
 
 ## 2. Ground truth ingestion (plan.md stage 1)
 
-- [ ] **T010** `[P]` — Pull SNCZI shapefile for the basin; normalize to
-  `source, source_id, lat, lon (WGS84), barrier_type, raw_attributes`.
+- [x] **T010** — Done: SNCZI presa/embalse shapefiles downloaded manually
+  (gis.miteco.gob.es resets automated TLS connections — needed a browser),
+  spatial-clipped to the real basin boundary: 495 presas + 492 embalses.
+  `DEMARC='GUADALQUIVIR'` field matched the spatial clip exactly (reliable).
 - [ ] **T011** `[P]` — Pull the Andalucía regional inventory; normalize
   to the same schema (proceed even if T002's license check is still
   pending — needed for detection either way).
-- [ ] **T012** `[P]` — Pull AMBER Barrier Atlas from Figshare, filter to
-  the basin, normalize.
-- [ ] **T013** `[P]` — Query OSM Overpass for `waterway=weir` within the
-  basin boundary, normalize.
-- [ ] **T014** — Merge T010–T013 into one `ground_truth.csv`/`.gpkg`, all
-  in WGS84. This is the join target for every later matching step.
+- [x] **T012** — Done: AMBER Barrier Atlas pulled from Figshare (full
+  629,955-record CSV), spatial-clipped to the basin: 2,659 records.
+  (Confirms `BasinName` text field is unreliable — only 151 had
+  "GUADALQUIVIR" tagged explicitly; spatial join was the right call.)
+- [x] **T013** — Done: OSM Overpass query for `waterway=weir`, clipped
+  to the basin: 409 records (1,217 pulled in the provisional bbox before
+  clipping).
+- [x] **T014** (partial) — SNCZI + AMBER + OSM merged into
+  `data/processed/ground_truth_guadalquivir.csv` (4,055 records, all
+  WGS84). Still needs T011 folded in once the Andalucía inventory lands.
 
 ## 3. Imagery acquisition (plan.md stage 2)
 
