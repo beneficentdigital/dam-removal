@@ -7,11 +7,11 @@ constitution principle 3.
 
 ## 0. Setup
 
-- [ ] **T001** — Decide the Guadalquivir basin boundary source: compare
-  the Confederación Hidrográfica del Guadalquivir district boundary
-  against a WFD river-basin-district shapefile once both are in hand;
-  pick one and record the choice (resolves spec.md's deferred open
-  question).
+- [x] **T001** — Resolved: EEA's WISE WFD2022 River Basin District
+  dataset, feature `GUADALQUIVIR` (`ES050`), pulled via public ArcGIS
+  REST (`water.discomap.eea.europa.eu/.../WFD2022_RiverBasinDistrict_WM`).
+  No login needed; CHG's own portal doesn't appear to publish this
+  boundary separately.
 - [ ] **T002** `[P]` — Verify the Andalucía regional inventory's
   redistribution license (email Agencia Andaluza del Agua/REDIAM if not
   stated on the download page). Long lead time, doesn't block building —
@@ -31,8 +31,10 @@ constitution principle 3.
 
 ## 1. Scaffold prep (plan.md stage 0)
 
-- [ ] **T007** — Depends on T001. Pull EU-Hydro river lines and clip to
-  the basin boundary.
+- [x] **T007** — Done: 17,033 EU-Hydro river-line features pulled via
+  public ArcGIS REST (`image.discomap.eea.europa.eu/.../EUHydro_RiverNetworkDatabase`)
+  for a provisional bbox superset; still needs the precise spatial clip
+  to T001's polygon (see T009).
 - [ ] **T008** `[P]` — Pull IGN's Red Hidrográfica network for the basin
   (Spain-specific hydrography supplement, constitution locked decision).
 - [ ] **T009** — Union T007 + T008, buffer 200m either side, split into

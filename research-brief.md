@@ -35,6 +35,15 @@ Important distinction: AMBER's 629,955 figure IS a real geo-referenced database 
   REDIAM) — **not yet confirmed**. Verify before the pilot's output CSV
   is shared publicly — see plan.md Risks.
 
+## Data access notes (found during build, 2026-09-09)
+- **EU-Hydro** and the **Guadalquivir basin boundary** are both pulled
+  directly from EEA's public ArcGIS REST services — no CLMS account or
+  CHG portal login needed:
+  - EU-Hydro river lines: `image.discomap.eea.europa.eu/arcgis/rest/services/EUHydro/EUHydro_RiverNetworkDatabase/MapServer` (layers 5-13, Strahler orders 1-9)
+  - Basin boundary: `water.discomap.eea.europa.eu/arcgis/rest/services/WISE_WFD/WFD2022_RiverBasinDistrict_WM/MapServer/0`, filtered to `thematicIdIdentifier='ES050'` (Guadalquivir)
+  - Both are standard ArcGIS REST `query` endpoints (JSON/GeoJSON, paginated), same license terms as the CLMS/EEA products described above.
+  - CHG's own geoportal (idechg.chguadalquivir.es) does not appear to publish the basin boundary as a separate downloadable layer — its catalog covers operational layers (cauces, presas, subcuencas, zonas vulnerables, etc.) instead.
+
 ## Reference / scaffold layers
 - **EU-Hydro** (Copernicus/EEA) — pan-European river network, free, open, all EEA countries. Being upgraded to 2.0. Use as the scaffold to know where to run detection rather than scanning blindly. Note: no water body data existed for Albania, Bosnia, North Macedonia, Montenegro, Serbia when originally built — same gap as everywhere else.
 - **PNOA** (Instituto Geográfico Nacional) — Spain's national aerial orthophotography, ~25cm resolution, free, periodically refreshed. Better resolution than RBOD's Google Earth training imagery — likely the best imagery source for the Spain pilot.

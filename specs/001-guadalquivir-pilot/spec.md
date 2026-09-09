@@ -206,7 +206,9 @@ the basin, computed against the Andalucía ground truth.
   Google Maps/Earth, vs. a CSV with pre-rendered thumbnail image links, vs.
   a small viewer) — trade-off between build effort now and review effort
   later, given the reviewer is you.
-- Source of the Guadalquivir basin boundary polygon used to clip EU-Hydro
-  (e.g. Confederación Hidrográfica del Guadalquivir district boundary vs.
-  a WFD river-basin-district shapefile) — deliberately deferred until we
-  see how EU-Hydro and candidate boundary sources are actually structured.
+- ~~Source of the Guadalquivir basin boundary polygon~~ — **resolved**:
+  EEA's WISE WFD2022 River Basin District dataset, feature `GUADALQUIVIR`
+  (code `ES050`), pulled via the public ArcGIS REST service at
+  `water.discomap.eea.europa.eu` (no login needed — CHG's own portal
+  doesn't appear to publish this boundary as a separate downloadable
+  layer). Saved to `data/raw/basin_boundary/guadalquivir_rbd.geojson`.
