@@ -1,0 +1,6 @@
+data/raw/
+data/processed/
+data/manifest/*.db
+__pycache__/
+*.pyc
+.venv/

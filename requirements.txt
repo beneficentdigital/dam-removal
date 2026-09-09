@@ -1,0 +1,12 @@
+earthengine-api
+geopandas
+shapely
+rasterio
+fiona
+pyproj
+ultralytics
+segment-geospatial
+cyfi
+requests
+pandas
+numpy
