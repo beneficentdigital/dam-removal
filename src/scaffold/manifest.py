@@ -59,6 +59,17 @@ def get_pending(db_path: str, stage: str) -> list[str]:
     return [r[0] for r in rows]
 
 
+def get_pending_with_geometry(db_path: str, stage: str) -> list[tuple[str, str]]:
+    if stage not in STAGES:
+        raise ValueError(f"unknown stage: {stage}")
+    con = sqlite3.connect(db_path)
+    rows = con.execute(
+        f"SELECT tile_id, geometry_wkt FROM tiles WHERE {stage} != 'done'"
+    ).fetchall()
+    con.close()
+    return rows
+
+
 def progress_summary(db_path: str) -> dict:
     con = sqlite3.connect(db_path)
     total = con.execute("SELECT COUNT(*) FROM tiles").fetchone()[0]
