@@ -67,15 +67,16 @@ constitution principle 3.
 
 ## 3. Imagery acquisition (plan.md stage 2)
 
-- [ ] **T015** — Write the Earth Engine pull script for `Spain/PNOA/
-  PNOA10` per AOI tile; check the collection's actual date coverage
-  against IGN's own download center to confirm currency.
-- [ ] **T016** — Probe the single worst-case tile (largest/most complex
-  reach) end-to-end before committing to a full run, per past experience
-  that this catches scaling problems early.
-- [ ] **T017** — Run the full imagery pull across all AOI tiles, writing
-  per-tile status to the manifest as each completes; must be safely
-  restartable if a Colab session disconnects mid-run.
+- [x] **T015** (revised) — PNOA10 confirmed to have zero coverage of the
+  Guadalquivir basin (its EE extent is northern/central Spain only, see
+  research-brief.md). Switched to Sentinel-2 as primary per FR-002's
+  documented fallback; `src/imagery/pull_imagery.py` written using
+  direct per-tile download (no Drive API needed) rather than the
+  originally-planned Drive export.
+- [x] **T016** — Done: probed `tile_000_008` end-to-end (auth, query,
+  real GeoTIFF download), verified with rasterio (correct CRS/bounds/
+  pixel dimensions) before committing to the full run.
+- [ ] **T017** — Run the full imagery pull across all 2,400 AOI tiles.
 
 ## 4. Layer 1 — direct structure detection (plan.md stage 3)
 

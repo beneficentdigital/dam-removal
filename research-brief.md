@@ -35,6 +35,25 @@ Important distinction: AMBER's 629,955 figure IS a real geo-referenced database 
   REDIAM) — **not yet confirmed**. Verify before the pilot's output CSV
   is shared publicly — see plan.md Risks.
 
+## Imagery source correction (found during build, 2026-09-10)
+- **PNOA is NOT usable for the Guadalquivir pilot via Earth Engine.** The
+  `Spain/PNOA/PNOA10` collection's entire extent is roughly lat 38.6-43.4
+  (northern/central Spain) — confirmed via `collection.geometry().bounds()`
+  returning `[[-8.90, 38.63], [4.33, 43.42]]`. The Guadalquivir basin
+  (36.7-38.7) has essentially zero overlap; a direct query over the whole
+  basin bbox returned 0 images. This EE asset appears to only include
+  flight campaigns from certain regions, not full national coverage,
+  despite the brief's original assumption.
+- **Sentinel-2 is the primary imagery source for this phase**, not a
+  fallback — confirmed working (63+ images for 2024 alone over a test
+  tile, direct per-tile GeoTIFF download verified end-to-end: correct
+  CRS, correct bounds, correct pixel dimensions at 10m resolution).
+  FR-002 already specified Sentinel-2 as a fallback for exactly this
+  case, so no spec change needed — just an earlier-than-expected switch.
+- Real PNOA (via IGN's own download center rather than this EE mirror)
+  remains worth pursuing later for higher resolution if the Sentinel-2
+  10m resolution proves insufficient for small azud detection.
+
 ## Data access notes (found during build, 2026-09-09)
 - **EU-Hydro** and the **Guadalquivir basin boundary** are both pulled
   directly from EEA's public ArcGIS REST services — no CLMS account or
