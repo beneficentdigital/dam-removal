@@ -1,4 +1,4 @@
-earthengine-api
+earthengine-api==1.6.9  # newer versions use `str | None` syntax requiring Python 3.10+; this machine has 3.9
 geopandas
 shapely
 rasterio
