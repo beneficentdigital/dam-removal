@@ -79,10 +79,13 @@ constitution principle 3.
 
 ## 4. Layer 1 — direct structure detection (plan.md stage 3)
 
-- [ ] **T018** — Select 50-100 known Guadalquivir dams from
-  `ground_truth.csv` for annotation, spread across the basin rather than
-  clustered; set aside ~20% of them as a held-out set used only for
-  evaluation, never for fine-tuning (FR-007a).
+- [x] **T018** — Done: deduped ground truth across sources first (50m
+  radius, source-priority SNCZI > Andalucía DERA > AMBER > OSM — found
+  813 cross-source duplicates, 4,408 -> 3,595 unique structures), then a
+  10x10 grid-stratified sample for geographic spread: 66 for annotation
+  + 17 held out (FR-007a), saved to
+  `data/processed/layer1_annotation_training_set.csv` and
+  `layer1_holdout_set.csv`.
 - [ ] **T019** — Set up a `segment-geospatial` (SAM) assisted annotation
   workflow: click each selected dam's location, review/adjust the
   proposed box.
