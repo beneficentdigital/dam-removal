@@ -80,6 +80,31 @@ def load_amber():
     return pd.DataFrame(rows)
 
 
+def load_andalucia():
+    boundary = gpd.read_file(BOUNDARY_PATH)
+    df = gpd.read_file("data/raw/dera/3_Hidrografia.gpkg", layer="T03_12_Presa")
+    df = df.to_crs(epsg=4326)
+    clipped = gpd.clip(df, boundary)
+    print(f"Andalucía DERA presas: total={len(df)}, spatial clip to Guadalquivir={len(clipped)}")
+    rows = []
+    for _, r in clipped.iterrows():
+        geom = r.geometry
+        pt = geom if geom.geom_type == "Point" else geom.centroid
+        rows.append(
+            {
+                "source": "ANDALUCIA_DERA",
+                "source_id": str(r["id_dera"]),
+                "lat": pt.y,
+                "lon": pt.x,
+                "barrier_type": r.get("tipo"),
+                "raw_attributes": json.dumps(
+                    {k: r[k] for k in df.columns if k != "geometry"}, default=str
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def load_osm():
     with open("data/raw/osm_weirs_provisional.json") as f:
         records = json.load(f)
@@ -96,8 +121,9 @@ def load_osm():
 if __name__ == "__main__":
     snczi = load_snczi()
     amber = load_amber()
+    andalucia = load_andalucia()
     osm = load_osm()
-    combined = pd.concat([snczi, amber, osm], ignore_index=True)
+    combined = pd.concat([snczi, amber, andalucia, osm], ignore_index=True)
     combined.to_csv("data/processed/ground_truth_guadalquivir.csv", index=False)
     print(f"\nTotal ground-truth records for Guadalquivir: {len(combined)}")
     print(combined["source"].value_counts())

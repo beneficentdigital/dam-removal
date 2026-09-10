@@ -12,10 +12,11 @@ constitution principle 3.
   REST (`water.discomap.eea.europa.eu/.../WFD2022_RiverBasinDistrict_WM`).
   No login needed; CHG's own portal doesn't appear to publish this
   boundary separately.
-- [ ] **T002** `[P]` — Verify the Andalucía regional inventory's
-  redistribution license (email Agencia Andaluza del Agua/REDIAM if not
-  stated on the download page). Long lead time, doesn't block building —
-  start it now, resolve before publishing (plan.md Risks).
+- [ ] **T002** `[P]` (partial) — Strong positive signal: REDIAM's own
+  metadata record for the related presas/embalses WMS states CC BY 4.0.
+  The specific IECA/DERA page we actually downloaded from didn't show
+  explicit terms in a quick check — still needs final confirmation
+  before publishing (plan.md Risks), but licensing risk looks low.
 - [ ] **T003** `[P]` — Send the outreach email to Dr. Wen Dai
   ([outreach-wen-dai.md](./outreach-wen-dai.md)). Also a long lead time
   item — send now so a reply has time to arrive before Layer 2 work
@@ -46,9 +47,13 @@ constitution principle 3.
   (gis.miteco.gob.es resets automated TLS connections — needed a browser),
   spatial-clipped to the real basin boundary: 495 presas + 492 embalses.
   `DEMARC='GUADALQUIVIR'` field matched the spatial clip exactly (reliable).
-- [ ] **T011** `[P]` — Pull the Andalucía regional inventory; normalize
-  to the same schema (proceed even if T002's license check is still
-  pending — needed for detection either way).
+- [x] **T011** — Done: Andalucía's IECA/DERA reference dataset (layer
+  `T03_12_Presa`, 592 records region-wide), downloaded from
+  juntadeandalucia.es (a 95MB GeoPackage bundle — the server dropped
+  connections repeatedly under a naive retry; a proper resume-loop that
+  re-checks bytes-on-disk before each attempt fixed it and survived an
+  overnight network drop cleanly). Spatial-clipped to the basin: 353
+  records.
 - [x] **T012** — Done: AMBER Barrier Atlas pulled from Figshare (full
   629,955-record CSV), spatial-clipped to the basin: 2,659 records.
   (Confirms `BasinName` text field is unreliable — only 151 had
@@ -56,9 +61,9 @@ constitution principle 3.
 - [x] **T013** — Done: OSM Overpass query for `waterway=weir`, clipped
   to the basin: 409 records (1,217 pulled in the provisional bbox before
   clipping).
-- [x] **T014** (partial) — SNCZI + AMBER + OSM merged into
-  `data/processed/ground_truth_guadalquivir.csv` (4,055 records, all
-  WGS84). Still needs T011 folded in once the Andalucía inventory lands.
+- [x] **T014** — Done: SNCZI + AMBER + Andalucía DERA + OSM merged into
+  `data/processed/ground_truth_guadalquivir.csv` (4,408 records, all
+  WGS84). Stage 1 complete.
 
 ## 3. Imagery acquisition (plan.md stage 2)
 
