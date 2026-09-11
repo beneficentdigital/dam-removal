@@ -16,8 +16,10 @@ Resumable: checks the manifest before processing each tile and skips
 anything already marked done (constitution principle 3).
 """
 
+import concurrent.futures
 import os
 import sys
+import time
 import urllib.request
 
 import ee
@@ -32,6 +34,8 @@ OUT_DIR = "data/raw/sentinel2_tiles"
 SCALE_M = 10  # Sentinel-2 native resolution for the RGB bands used
 DATE_RANGE = ("2023-01-01", "2025-12-31")  # widen if a tile has poor S2 coverage
 CLOUD_MAX_PCT = 20
+MAX_RETRIES = 3
+CONCURRENCY = int(os.environ.get("PULL_CONCURRENCY", 10))  # I/O-bound, not CPU-bound
 
 
 def init():
@@ -69,6 +73,20 @@ def pull_tile(tile_id: str, geometry_wkt: str) -> bool:
     return True
 
 
+def pull_tile_safe(tile_id: str, geometry_wkt: str) -> tuple[str, bool]:
+    """Wraps pull_tile with retries so one flaky network call (a real
+    TimeoutError killed an earlier unguarded run) can't take down a
+    multi-hour batch. Any failure after retries is marked, not raised."""
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            return tile_id, pull_tile(tile_id, geometry_wkt)
+        except Exception as e:
+            print(f"  {tile_id}: attempt {attempt}/{MAX_RETRIES} failed: {e}")
+            if attempt < MAX_RETRIES:
+                time.sleep(2**attempt)
+    return tile_id, False
+
+
 if __name__ == "__main__":
     init()
     pending = get_pending_with_geometry(MANIFEST_PATH, "imagery")
@@ -81,16 +99,28 @@ if __name__ == "__main__":
         print(f"Limiting this run to {limit} tiles (pass no argument for the full run)")
         pending = pending[:limit]
 
-    # Probe the worst-case tile (largest area) first.
+    # Probe the worst-case tile (largest area) first, serially, before
+    # spawning concurrent workers for the rest.
     worst_case = max(pending, key=lambda t: shapely_wkt.loads(t[1]).area)
     print(f"Probing worst-case tile {worst_case[0]} first...")
-    probe_ok = pull_tile(*worst_case)
+    _, probe_ok = pull_tile_safe(*worst_case)
     set_status(MANIFEST_PATH, worst_case[0], "imagery", "done" if probe_ok else "failed")
     if not probe_ok:
         print("Probe tile failed -- stopping before the full run so this can be investigated.")
         sys.exit(1)
 
     remaining = [t for t in pending if t[0] != worst_case[0]]
-    for tile_id, geometry_wkt in remaining:
-        ok = pull_tile(tile_id, geometry_wkt)
-        set_status(MANIFEST_PATH, tile_id, "imagery", "done" if ok else "failed")
+    print(f"Pulling remaining {len(remaining)} tiles with {CONCURRENCY} concurrent workers...")
+    n_done = n_failed = 0
+    with concurrent.futures.ThreadPoolExecutor(max_workers=CONCURRENCY) as pool:
+        futures = {pool.submit(pull_tile_safe, tid, geom): tid for tid, geom in remaining}
+        for future in concurrent.futures.as_completed(futures):
+            tile_id, ok = future.result()
+            set_status(MANIFEST_PATH, tile_id, "imagery", "done" if ok else "failed")
+            n_done += ok
+            n_failed += not ok
+            if (n_done + n_failed) % 20 == 0:
+                print(f"  progress: {n_done} done, {n_failed} failed, "
+                      f"{len(remaining) - n_done - n_failed} remaining")
+
+    print(f"Finished: {n_done} done, {n_failed} failed out of {len(remaining)}")
