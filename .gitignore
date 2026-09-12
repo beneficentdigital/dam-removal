@@ -4,3 +4,4 @@ data/manifest/*.db
 __pycache__/
 *.pyc
 .venv/
+pull_full_log.txt
