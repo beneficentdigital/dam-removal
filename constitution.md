@@ -69,6 +69,15 @@ them, not the other way round.
   either "known" or "new" are never silently auto-classified — they're
   routed to a distinct, human-reviewable output so a person makes the
   final call.
+- **Real PNOA required for Layer 1, not Sentinel-2:** confirmed by
+  direct visual check that Sentinel-2's 10m resolution cannot resolve
+  small azudes — only large registered dams are visible at all, meaning
+  Layer 1 on Sentinel-2 could only re-confirm the existing registry, not
+  find new small structures (the project's actual purpose). Sourcing
+  real PNOA (10-25cm, via IGN directly, not the incomplete Earth Engine
+  mirror) is required before Layer 1 annotation/training proceeds.
+  Sentinel-2 remains fine for Layers 2-4 (DEM, water-signature, algae),
+  which don't depend on resolving the structure itself.
 - **Spain-specific hydrography scaffold:** for Spain phases (pilot and
   Spain-wide), supplement EU-Hydro with a denser national network —
   IGN's Red Hidrográfica and/or our own DEM-derived stream network from

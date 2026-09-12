@@ -69,6 +69,16 @@ Use these to fine-tune RBOD's best architecture (YOLOv8x-OBB) or adapt
 Sun et al.'s published checkpoint. Run inference per tile. Output:
 oriented bounding box → centroid lat/lon + confidence.
 
+**Coordinate-quality filter** (found during build, 2026-09-12): spot-
+checking real PNOA crops for the 66-dam training set showed a
+meaningful fraction with no visible structure/water at all within the
+150m crop — across all sources, not just AMBER/OSM (an SNCZI-registered
+"embalse" record showed a farmstead, no water). Before annotating,
+visually confirm each crop actually shows a structure; skip and replace
+from the deduped pool (select_annotation_set.py) rather than forcing a
+box onto an empty or wrong-looking crop. Widen the buffer (currently
+150m) first if the structure looks like it's just outside frame.
+
 Hold out a portion of the annotated set (proposed: 20%, or all of it if
 the count stays near 50) from fine-tuning entirely, so it can serve as an
 independent check — and, critically, none of the annotated set is used

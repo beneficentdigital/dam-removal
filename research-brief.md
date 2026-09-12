@@ -35,6 +35,25 @@ Important distinction: AMBER's 629,955 figure IS a real geo-referenced database 
   REDIAM) — **not yet confirmed**. Verify before the pilot's output CSV
   is shared publicly — see plan.md Risks.
 
+## Real PNOA source confirmed (found during build, 2026-09-12)
+- **IGN's own WMS**, not Earth Engine, is the correct source:
+  `https://www.ign.es/wms-inspire/pnoa-ma`, layer `OI.OrthoimageCoverage`
+  — standard OGC WMS 1.3.0 GetMap, no auth needed. Confirmed 0.25-0.5m
+  resolution (varies by zone) with a real fetched crop showing
+  individually-resolved olive trees — more than sufficient to see and
+  annotate a small azud, unlike the Sentinel-2 fallback (10m, only
+  large dams visible at all).
+- This is "PNOA-MA" (Máxima Actualidad / most-recent), auto-updated
+  several times a year; falls back to Sentinel-2 within the same WMS
+  layer at zoomed-out scales (>~1:70,000), so requests must specify a
+  tight enough bbox/resolution to render the actual orthophoto.
+- Scaling note for the full-basin run (not just the 66 annotation
+  crops): at 0.25-0.5m/pixel, the existing 5km tile grid (sized for
+  Sentinel-2's 10m) would be 10,000-20,000px per side per request --
+  too large for direct WMS GetMap. Full-basin PNOA inference will need
+  much smaller sub-tiles than the current manifest grid; revisit tile
+  sizing before running Layer 1 inference at basin scale.
+
 ## Imagery source correction (found during build, 2026-09-10)
 - **PNOA is NOT usable for the Guadalquivir pilot via Earth Engine.** The
   `Spain/PNOA/PNOA10` collection's entire extent is roughly lat 38.6-43.4
