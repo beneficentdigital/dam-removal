@@ -36,10 +36,22 @@ constitution principle 3.
   public ArcGIS REST (`image.discomap.eea.europa.eu/.../EUHydro_RiverNetworkDatabase`)
   for a provisional bbox superset; still needs the precise spatial clip
   to T001's polygon (see T009).
-- [ ] **T008** `[P]` — Pull IGN's Red Hidrográfica network for the basin
-  (Spain-specific hydrography supplement, constitution locked decision).
-- [ ] **T009** — Union T007 + T008, buffer 200m either side, split into
-  AOI tiles, populate the manifest (T006) with one row per tile.
+- [x] **T008** (partial, 2026-09-15) — Pulled via IGN's public WFS
+  (`servicios.idee.es/wfs-inspire/hidrografia`, `hy-n:WatercourseLink`,
+  CC BY 4.0): 61,000 line features for the basin bbox, saved to
+  `data/raw/red_hidrografica_watercourses.gpkg`. Hit a 61,000-feature
+  safety cap in the pagination loop — there may be more; raise the cap
+  and re-pull to confirm completeness before relying on this as final.
+  Bonus find in the same WFS: `hy-p:DamOrWeir` (28,774 features
+  nationally) — a 5th ground-truth source not yet pulled or merged into
+  `ground_truth_guadalquivir.csv`.
+- [ ] **T009** — Union T007 + T008 (once confirmed complete), buffer
+  200m either side, split into AOI tiles. **Not done** — the existing
+  2,369-tile manifest and all Sentinel-2/DEM pulls so far were built
+  from EU-Hydro alone; redoing this with the denser network would
+  change the tile grid. Decide whether to redo the AOI with the fuller
+  network or treat Red Hidrográfica as a river-line source for the
+  Layer 3 anomalous-widening fix (spec.md FR-015) without re-tiling.
 
 ## 2. Ground truth ingestion (plan.md stage 1)
 
@@ -140,9 +152,20 @@ Homebrew) rather than upgrading the whole project's Python.
   `reduceToVectors`); OmniWaterMask confirmation built and batched
   (`layer3_confirm_owm.py`, ~20s/candidate after batching + dropping
   unneeded OSM building/road checks).
+- [x] **T030a** (new, found 2026-09-14) — River-intersection filter
+  (FR-015): only 23-35% of raw NDWI candidates actually touched a real
+  river line even at 100m tolerance — the rest were disconnected ponds/
+  irrigation reservoirs within the 200m AOI buffer but not on the river
+  itself. Added to `dedup_ndwi_candidates.py` (30m tolerance, spatial
+  join — not a full river-network union, which took 19+ min of CPU for
+  no result). Cuts the candidate set ~3.5x as a side effect (3093 ->
+  870 on the partial basin run so far). **Still needed**: the same
+  filter on Layer 1's full-basin inference once built (T022 was
+  trained on real registry points so isn't affected, but full-basin
+  scanning would hit the same problem).
 - [ ] **T030** — In progress: NDWI pass running basin-wide (detached,
   monitored); confirmation pass to follow once it completes and
-  candidates are deduped.
+  candidates are deduped + river-filtered (T030a).
 
 ## 7. Layer 4 — ecological/algae (plan.md stage 6)
 

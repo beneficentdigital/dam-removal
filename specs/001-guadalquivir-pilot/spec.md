@@ -34,6 +34,19 @@ have no ground-truth record to inherit a type from — a detection layer's
 output has to be checked against this definition, not accepted just
 because something showed up at that location.
 
+**Enforced spatial check (added 2026-09-14):** a detected water body
+must actually intersect a real river line (within 30m, matching the
+project's ground-truth match tolerance) to count as a barrier candidate
+at all. Found via direct measurement that only 23-35% of raw Layer 3
+(NDWI) candidates did, even with a generous 100m tolerance — the rest
+were disconnected ponds and irrigation reservoirs (balsas) within the
+200m AOI scoping buffer but not on the river itself. The project's goal
+is barriers that fragment rivers; an unconnected pond isn't fragmenting
+anything. This check must be applied to every layer's raw output before
+fusion, not just Layer 3 — Layer 1's full-basin inference (not yet
+built) will need the same filter, since its training only teaches it to
+recognize "a body of ponded water," not specifically one on a channel.
+
 ## Primary user story
 
 A Dam Removal Europe researcher runs the pipeline against the Guadalquivir
@@ -163,6 +176,13 @@ the basin, computed against the Andalucía ground truth.
   MITECO, AMBER Atlas — CC-BY-4.0 — and the Andalucía regional inventory
   once its license is confirmed), so the dataset can be shared externally
   without violating source licensing terms.
+- **FR-015**: Every detection layer's raw candidates MUST be filtered to
+  those whose geometry intersects a real river line (within 30m) before
+  entering fusion — a detected water body or structure that doesn't
+  touch the river network is not a barrier candidate, regardless of how
+  confidently a layer detected it. Applies to Layer 3 (implemented) and
+  to Layer 1's full-basin inference once built (not yet — its training
+  data doesn't distinguish "pond on a river" from "pond not on one").
 
 ## Key entities
 

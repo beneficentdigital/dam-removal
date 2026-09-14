@@ -94,7 +94,7 @@ specifically, project the OBB centroid onto the nearest river-line point
 rather than using it directly, so a barrier the width of its reservoir
 doesn't shift the reported coordinate away from the channel.
 
-**4. Layer 2 — DEM/hydrological**
+**4. Layer 2 — DEM/hydrological — STOPPED 2026-09-14, see constitution.md**
 Reproduce the Yellow River check-dam paper's method (flow accumulation +
 valley-shape analysis) against PNOA-MDT for the same AOI tiles, per the
 outreach-first approach with Dr. Wen Dai (see Risks). In parallel,
@@ -200,7 +200,8 @@ restart — required by constitution principle 3.
 ## Exit criteria (gate to phase 2 — Spain-wide)
 
 Per constitution principle 6, moving to the Spain-wide run requires:
-1. All four layers run across the full Guadalquivir basin scope.
+1. All three remaining layers (Layer 2 stopped, see constitution.md) run
+   across the full Guadalquivir basin scope.
 2. Precision/recall computed and written up against the Andalucía inventory.
 3. `pilot_output.csv`, `review_uncertain.csv`, and `removed_barriers.csv`
    produced and shareable.
