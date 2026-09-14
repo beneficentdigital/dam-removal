@@ -146,10 +146,16 @@ Homebrew) rather than upgrading the whole project's Python.
 
 ## 7. Layer 4 — ecological/algae (plan.md stage 6)
 
-- [ ] **T031** — Set up CyFi over Sentinel-2 for the AOI.
-- [ ] **T032** — Depends on T030 (and T022/T027 for candidate locations
-  to confirm against). Run CyFi as a confirming pass near existing
-  candidates, not as an independent search.
+- [x] **T031** — Done: CyFi installed in `.venv-owm` (needs Python
+  3.10+, same as OmniWaterMask). One-time ~2GB land cover map download
+  cached; batch mode (`layer4_algae.py`) tested on all 63 micro-pilot
+  ground-truth points: 62/63 got predictions (61 high, 1 moderate
+  severity — uniformly high, consistent with real Andalucían
+  reservoirs in June/peak algae season; confirms this layer won't
+  discriminate much *among* confirmed water bodies, only water vs. not,
+  matching its planned role as a confirming signal, not primary).
+- [ ] **T032** — Pending full-basin Layer 1/3 candidates to confirm
+  against (not an independent search, per plan.md).
 
 ## 8. Fusion, matching, classification (plan.md stages 7-9)
 

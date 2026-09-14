@@ -14,3 +14,5 @@ data/processed/layer3_water_candidates.jsonl
 pull_dem_chunks_log.txt
 layer3_ndwi_log.txt
 OWM_cache/
+data/raw/layer4_cyfi/
+.venv-owm/
