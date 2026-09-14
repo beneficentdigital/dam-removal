@@ -8,6 +8,7 @@ one EE query per tile returns small water-body polygons directly.
 Resumable via the manifest's "layer3" column, same pattern as imagery.
 """
 
+import concurrent.futures
 import json
 import os
 import sys
@@ -24,6 +25,11 @@ DATE_RANGE = ("2023-01-01", "2025-12-31")
 CLOUD_MAX_PCT = 20
 NDWI_THRESHOLD = 0.2
 MIN_AREA_M2 = 200  # drop noise smaller than a ~14x14m speck
+TILE_TIMEOUT_S = 90  # earthengine-api has no built-in request timeout --
+# a single tile with an unusually complex water mask to vectorize can
+# hang indefinitely otherwise (confirmed 2026-09-14: caught a real hang,
+# zero progress for a full 10min monitor interval with the process
+# still alive, barely any CPU used -- stuck waiting on one EE response)
 
 
 def init():
@@ -77,10 +83,19 @@ if __name__ == "__main__":
 
     os.makedirs(os.path.dirname(OUT_PATH), exist_ok=True)
     n_candidates = 0
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
     with open(OUT_PATH, "a") as out_f:
         for tile_id, geometry_wkt in pending:
             try:
-                features = water_polygons_for_tile(geometry_wkt)
+                future = executor.submit(water_polygons_for_tile, geometry_wkt)
+                features = future.result(timeout=TILE_TIMEOUT_S)
+            except concurrent.futures.TimeoutError:
+                print(f"  {tile_id}: TIMED OUT after {TILE_TIMEOUT_S}s, skipping")
+                set_status(MANIFEST_PATH, tile_id, "layer3", "failed")
+                # The hung call keeps running in its own thread, but the
+                # main loop moves on rather than blocking indefinitely.
+                executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+                continue
             except Exception as e:
                 print(f"  {tile_id}: failed ({e})")
                 set_status(MANIFEST_PATH, tile_id, "layer3", "failed")

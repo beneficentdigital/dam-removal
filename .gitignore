@@ -11,3 +11,5 @@ pull_dem_log.txt
 .venv-owm/
 data/raw/dem_tiles/
 data/processed/layer3_water_candidates.jsonl
+pull_dem_chunks_log.txt
+layer3_ndwi_log.txt
