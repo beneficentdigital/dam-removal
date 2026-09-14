@@ -188,9 +188,11 @@ the basin, computed against the Andalucía ground truth.
 
 ## Resolved during clarification
 
-- **Layer scope**: all four detection layers (direct structure, DEM/
-  hydrological, water-signature, ecological/algae) are built before the
-  pilot's precision/recall is computed. See constitution.md.
+- **Layer scope (revised 2026-09-14)**: Layer 2 (DEM/hydrological)
+  stopped via constitution.md's fallback after three failed scaling
+  attempts with no remaining lead — pilot proceeds as a 3-layer result
+  (direct structure, water-signature, ecological/algae). See
+  constitution.md for the full record.
 - **Match tolerance**: 30 meters. See constitution.md.
 - **Uncertain detections**: never silently auto-classified as known or
   new — routed to a distinct `new-uncertain` human-review output

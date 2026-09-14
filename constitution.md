@@ -59,10 +59,13 @@ them, not the other way round.
   Speed now explicitly outweighs the marginal accuracy gain from manual
   annotation — revisit if basin-scale precision/recall comes back too
   low to trust.
-- **Layer scope for the pilot:** all four detection layers (direct
-  structure, DEM/hydrological, water-signature, ecological/algae) are
-  built before the pilot's precision/recall is computed — the stacked
-  result is the thing worth establishing, not a single-layer number.
+- **Layer scope for the pilot (revised 2026-09-14):** originally all
+  four detection layers before computing precision/recall. Layer 2
+  (DEM/hydrological) stopped via its own fallback above — the pilot now
+  proceeds as a documented 3-layer result (direct structure,
+  water-signature, ecological/algae). The stacked result across these
+  three is still the thing worth establishing, not any single layer's
+  number; Layer 2's absence is reported honestly, not silently.
 - **Match tolerance:** 30 meters between a detection and an existing
   ground-truth record counts as a match — wide enough to absorb
   georeferencing error between SNCZI/AMBER/OSM sources, tight enough not
@@ -94,11 +97,18 @@ them, not the other way round.
   feed a likely future project mapping the impact of dam removal — but
   they are explicitly excluded from the pilot's headline barrier count
   and from precision/recall against current ground truth.
-- **DEM/hydrological layer outreach-first:** before building this layer,
-  email Dr. Wen Dai (wen.dai@nuist.edu.cn) to ask for private code
-  access, the paper's omitted parameters, his validation data as a
-  benchmark, and his read on whether the method transfers from Loess
-  Plateau check dams to Guadalquivir river weirs — only fall back to
-  blind reproduction if he doesn't respond. If neither path works out,
-  report the pilot as a documented 3-layer result rather than blocking
-  indefinitely on one unreproducible method.
+- **DEM/hydrological layer: STOPPED, fallback invoked (2026-09-14).**
+  Outreach to Dr. Wen Dai sent, no reply. Blind reproduction attempted
+  through three full scaling reworks — 5km imagery tiles (max flow
+  accumulation: 36), 50km contiguous chunks (max: 1,368), a full
+  whole-basin mosaic covering all 55 chunks, 180M pixels (max: 23,926)
+  — each roughly an order of magnitude short of a real river network in
+  a 57,527km² basin, which should approach millions of cells at the
+  outlet. A targeted diagnostic (masking 17.6% of the mosaic that sat
+  at exactly 0m elevation, suspected as spurious WCS no-coverage fill
+  rather than real terrain) changed nothing. No remaining lead that
+  isn't another open-ended debugging round. The pilot proceeds as a
+  documented 3-layer result (Layer 1 + Layer 3 + Layer 4) per this
+  fallback; revisit only if Dr. Dai (or DL-HFCS's authors) provides the
+  real method. Data assembled and kept for that: `dem_chunks/` (55
+  tiles) and `dem_basin_mosaic.tif` (whole-basin, 360MB).

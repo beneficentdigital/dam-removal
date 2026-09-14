@@ -101,31 +101,48 @@ constitution principle 3.
   each detection's centroid onto the nearest river-line point (canonical
   point rule, plan.md stage 3/7) rather than reporting the raw centroid.
 
-## 5. Layer 2 — DEM/hydrological (plan.md stage 4)
+## 5. Layer 2 — DEM/hydrological — STOPPED 2026-09-14 (plan.md stage 4)
 
-- [ ] **T023** — Depends on T003's reply (or a time-box expiring without
-  one — see plan.md Risks). Incorporate whatever Dr. Dai shares (code,
-  parameters, validation data, transferability opinion) into the
-  approach; if no reply, proceed to blind reproduction from the paper.
-- [ ] **T024** `[P]` — In parallel, evaluate DL-HFCS (DOI 10.3390/
-  rs17071194) as a second candidate for this layer.
-- [ ] **T025** — Pull PNOA-MDT for the basin.
-- [ ] **T026** — Implement the flow-accumulation/valley-shape method
-  (from whichever of T023/T024 pans out); if validation data was
-  obtained, benchmark the reimplementation against the source paper's
-  reported numbers before trusting it on Guadalquivir data.
-- [ ] **T027** — Run Layer 2 across all tiles, applying the canonical
-  point rule to each output.
-- [ ] **T028** — As a byproduct, derive a DEM-based stream network from
-  the flow-accumulation step; reconcile with T008's Red Hidrográfica
-  supplement (cross-check, don't just discard either).
+Fallback invoked per constitution.md after three failed scaling
+attempts (5km tiles, 50km chunks, whole-basin mosaic — each ~10x short
+of the last, all far below a real river network's expected flow
+accumulation) and a negative diagnostic (masking suspected bad
+zero-elevation data changed nothing). No reply from Dr. Dai. Data kept
+for a future attempt if he or DL-HFCS's authors provide the real
+method.
+
+- [x] **T023** — No reply from Dr. Dai; proceeded to blind reproduction.
+- [ ] **T024** — Not attempted (time went to the blind-reproduction
+  scaling debugging instead); still a live option if Layer 2 is
+  revisited.
+- [x] **T025** (revised) — PNOA-MDT pulled as 55 contiguous 40km+5km-
+  buffer chunks at 25m resolution (not per-tile — see research-brief.md
+  finding), via IGN's public WCS. `data/raw/dem_chunks/`.
+- [x] **T026** — Implemented flow-accumulation + along-stream step-
+  detection (richdem D8). Mechanically works; scaling/data-quality
+  issues prevented it from ever seeing a real stream network. Stopped,
+  not benchmarked against Dai et al.'s reported numbers.
+- [ ] **T027** — Not reached.
+- [ ] **T028** — Not reached; the DEM-based stream network idea is
+  moot without working flow accumulation.
 
 ## 6. Layer 3 — water-signature (plan.md stage 5)
 
-- [ ] **T029** — Set up OmniWaterMask (NDWI + OSM water bodies) over the
-  AOI tiles.
-- [ ] **T030** — Run Layer 3, flagging river-line pooling/widening;
-  canonical point rule applied.
+Built as a two-stage pipeline rather than running OmniWaterMask
+directly over all tiles (would take ~100hrs on this hardware): fast
+NDWI proposes candidates basin-wide, OmniWaterMask confirms each one.
+OmniWaterMask needed Python 3.10+ (every version, unlike
+earthengine-api) — runs in its own venv (`.venv-owm/`, Python 3.11 via
+Homebrew) rather than upgrading the whole project's Python.
+
+- [x] **T029** (revised) — NDWI candidate generation running basin-wide
+  (`layer3_water_signature.py`, server-side via Earth Engine
+  `reduceToVectors`); OmniWaterMask confirmation built and batched
+  (`layer3_confirm_owm.py`, ~20s/candidate after batching + dropping
+  unneeded OSM building/road checks).
+- [ ] **T030** — In progress: NDWI pass running basin-wide (detached,
+  monitored); confirmation pass to follow once it completes and
+  candidates are deduped.
 
 ## 7. Layer 4 — ecological/algae (plan.md stage 6)
 
