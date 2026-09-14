@@ -5,3 +5,5 @@ __pycache__/
 *.pyc
 .venv/
 pull_full_log.txt
+*.pt
+data/processed/yolo_dataset/
