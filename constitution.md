@@ -51,12 +51,14 @@ them, not the other way round.
 - **Compute budget:** free-tier only (Earth Engine + Colab free tier)
   through the pilot and the Spain-wide run. Revisit only if free tier
   genuinely can't finish a phase in reasonable time.
-- **Layer 1 training approach:** manually annotate (draw bounding boxes
-  around) ~50-100 known Guadalquivir dams in PNOA imagery to fine-tune the
-  detection model on local imagery and terrain, rather than relying on
-  the RBOD checkpoint as-is. Chosen over a faster/lower-effort approach
-  because maximum accuracy is the priority here, even at the cost of more
-  upfront manual work.
+- **Layer 1 training approach (revised 2026-09-14):** originally manual
+  bounding-box annotation for maximum accuracy. Reversed under explicit
+  time pressure ("I want it all done") in favor of the faster
+  color-threshold heuristic + YOLOv8n approach proven in the micro-pilot
+  (specs/002-micro-pilot): 11/12 held-out recall on 26 training examples.
+  Speed now explicitly outweighs the marginal accuracy gain from manual
+  annotation — revisit if basin-scale precision/recall comes back too
+  low to trust.
 - **Layer scope for the pilot:** all four detection layers (direct
   structure, DEM/hydrological, water-signature, ecological/algae) are
   built before the pilot's precision/recall is computed — the stacked

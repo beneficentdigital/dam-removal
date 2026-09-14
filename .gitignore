@@ -7,3 +7,7 @@ __pycache__/
 pull_full_log.txt
 *.pt
 data/processed/yolo_dataset/
+pull_dem_log.txt
+.venv-owm/
+data/raw/dem_tiles/
+data/processed/layer3_water_candidates.jsonl

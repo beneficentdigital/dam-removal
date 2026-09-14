@@ -73,6 +73,17 @@ Important distinction: AMBER's 629,955 figure IS a real geo-referenced database 
   remains worth pursuing later for higher resolution if the Sentinel-2
   10m resolution proves insufficient for small azud detection.
 
+## Environment note: OmniWaterMask needs a separate venv (2026-09-14)
+Every version of OmniWaterMask (and its `omnicloudmask` dependency at
+newer versions) uses `X | None` union-type syntax requiring Python
+3.10+; this machine's main Python is 3.9.6 (already pinned
+earthengine-api to 1.6.9 for the same reason, but OmniWaterMask has no
+compatible version to bisect to). Installed Python 3.11 via Homebrew
+and created `.venv-owm/` specifically for Layer 3, rather than
+upgrading the whole project's Python version and risking every other
+already-working script. Layer 3 scripts run via
+`.venv-owm/bin/python3`, everything else via the system Python 3.9.
+
 ## Data access notes (found during build, 2026-09-09)
 - **EU-Hydro** and the **Guadalquivir basin boundary** are both pulled
   directly from EEA's public ArcGIS REST services — no CLMS account or
