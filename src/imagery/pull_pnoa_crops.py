@@ -52,9 +52,12 @@ def fetch_crop(lat: float, lon: float, out_path: str) -> bool:
 
 
 if __name__ == "__main__":
+    csv_name = sys.argv[1] if len(sys.argv) > 1 else "layer1_annotation_training_set.csv"
+    out_subdir = sys.argv[2] if len(sys.argv) > 2 else "pnoa_crops"
+    OUT_DIR = os.path.join(PROJECT_ROOT, "data/raw", out_subdir)
     os.makedirs(OUT_DIR, exist_ok=True)
-    df = pd.read_csv(os.path.join(PROJECT_ROOT, "data/processed/layer1_annotation_training_set.csv"))
-    print(f"Pulling PNOA crops for {len(df)} training-set dams...")
+    df = pd.read_csv(os.path.join(PROJECT_ROOT, "data/processed", csv_name))
+    print(f"Pulling PNOA crops for {len(df)} dams from {csv_name}...")
 
     n_ok = 0
     for _, row in df.iterrows():

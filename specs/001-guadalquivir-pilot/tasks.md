@@ -76,7 +76,10 @@ constitution principle 3.
 - [x] **T016** — Done: probed `tile_000_008` end-to-end (auth, query,
   real GeoTIFF download), verified with rasterio (correct CRS/bounds/
   pixel dimensions) before committing to the full run.
-- [ ] **T017** — Run the full imagery pull across all 2,400 AOI tiles.
+- [x] **T017** — Done: full basin Sentinel-2 pull complete, 2,369/2,369
+  tiles, 0 failures, 5.6GB (`data/raw/sentinel2_tiles/`). Ran detached
+  (nohup + disown + caffeinate) so it survived independently of any
+  single chat session.
 
 ## 4. Layer 1 — direct structure detection (plan.md stage 3)
 
