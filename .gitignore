@@ -14,6 +14,7 @@ data/raw/
 data/raw/dem_tiles/
 data/raw/layer4_cyfi/
 layer3_ndwi_log.txt
+layer3_confirm_log.txt
 pull_dem_chunks_log.txt
 pull_dem_log.txt
 pull_full_log.txt

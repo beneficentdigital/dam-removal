@@ -213,14 +213,38 @@ Homebrew) rather than upgrading the whole project's Python.
 
 ## 8. Fusion, matching, classification (plan.md stages 7-9)
 
-- [ ] **T033** — Depends on T022, T027, T030, T032. Implement candidate
-  fusion: merge detections within a 50m radius into one record per
-  physical structure, keeping each contributing layer + its confidence.
-- [ ] **T034** — Depends on T014, T033. Spatial-join fused candidates
-  against ground truth within 30m; label `known` on match.
-- [ ] **T035** — Implement the `new-confirmed`/`new-uncertain` rule (≥2
-  layers agree within 50m, or single-layer confidence ≥0.85; else
-  uncertain) per plan.md stage 9 and FR-005a.
+- [x] **T033** (code done 2026-09-15, not yet run on final data) —
+  `src/fusion/fuse_candidates.py`: union-find clustering within 50m,
+  keyed to whichever layers are registered in `LAYER_NORMALIZERS` (only
+  `layer3_water_signature` has real data right now — Layer 1 untrained,
+  Layer 2 stopped, Layer 4 confirms rather than proposes). Also
+  implements plan.md's canonical-point rule (every layer reduces to
+  where the detection crosses the river centerline, not a raw blob
+  centroid) via new `src/layers/river_network.py`, shared with
+  `dedup_ndwi_candidates.py`'s river loading.
+- [x] **T034** (code done 2026-09-15) — Wired the existing
+  `match_ground_truth.py` into the fusion script (spatial join, 30m,
+  locked tolerance). **Real finding, not yet resolved**: smoke-tested
+  against the 28 Layer 3 candidates confirmed so far, 0 matched within
+  30m even after canonical-point snapping. Splits into two distinct
+  causes: (a) candidates west of lon -6.2 (the Doñana delta/estuary
+  region) are 5-14km from the nearest ground truth — likely the
+  already-documented EU-Hydro delta mapping gap producing false
+  positives there, not real missed matches; (b) candidates elsewhere in
+  the basin (well short of the delta) still land 137-898m from a real
+  nearby registry point even after snapping to the nearest river-network
+  point — canonical-point projection alone isn't closing the gap to
+  FR-005's locked 30m tolerance. Left the tolerance as spec'd rather
+  than quietly loosening a locked requirement; per constitution
+  principle 1 this needs an honest look (likely at T042's false-positive
+  spot-check stage) once there's enough real data to see whether 137-898m
+  is a consistent pattern or noise from this being a 28-candidate sample.
+- [x] **T035** (code done 2026-09-15) — `classify()` in the same file:
+  `new-confirmed` if ≥2 layers agree within the fusion radius or a
+  single layer's confidence ≥0.85, else `new-uncertain`. On the current
+  28-candidate smoke test: 16 new-confirmed, 11 new-uncertain, 0 known
+  (see T034's caveat — some of these "new" candidates are probably
+  actually known dams the point-alignment gap is hiding).
 
 ## 9. Removed-barrier check (plan.md stage 12)
 
@@ -231,14 +255,34 @@ Homebrew) rather than upgrading the whole project's Python.
 
 ## 10. Outputs (plan.md stage 10)
 
-- [ ] **T037** — Depends on T035. Generate `pilot_output.csv` (known +
-  new-confirmed + new-uncertain, full schema per FR-008).
-- [ ] **T038** — Generate `review_uncertain.csv` with an Earth Engine
-  thumbnail URL per row (FR-013).
-- [ ] **T039** — Depends on T036. Generate `removed_barriers.csv`
-  (auxiliary, excluded from the headline count).
-- [ ] **T040** — Depends on T002 (or its time-box). Write
-  `ATTRIBUTION.md` covering every source's license (FR-014).
+- [x] **T037** (code done 2026-09-15, ran on the 27-candidate smoke
+  test, not final data) — `src/output/generate_outputs.py` writes
+  `pilot_output.csv` from `fused_candidates.csv`: lat, lon, layers,
+  n_layers, confidence + per-layer breakdown, match_status, matched
+  source/id/distance, source_refs (FR-008 + constitution.md principle 5
+  provenance).
+- [x] **T038** (code done 2026-09-15, ran for real) — same script writes
+  `review_uncertain.csv` with an `ee_thumbnail_url` per row (FR-013).
+  Two real bugs found and fixed while probing a single thumbnail before
+  generating all 11 (constitution.md principle 3): a fixed min/max
+  (0-3000, the usual S2 true-color preset) rendered this AOI's actual
+  reflectance (~150-400) as solid black; a shared min/max across all
+  three bands then produced a green-wash false-color mess once the
+  range was fixed. Settled on a 400m buffer (wide enough to show
+  riverbank/land context, not just a mostly-water crop) with a
+  per-band 2nd-98th-percentile stretch computed from that same AOI.
+  Confirmed publicly fetchable with no auth (curl, HTTP 200). Spot-
+  checking one of the 11 real thumbnails turned out to be a genuine,
+  useful catch: an "uncertain" candidate near the Doñana coast that's
+  visibly an ocean beach town, not a river structure at all — concrete
+  evidence for T034's Doñana-delta-gap hypothesis, and a real
+  demonstration that the review step does its job.
+- [ ] **T039** — Depends on T036 (not reached — T036 itself not
+  started).
+- [x] **T040** (done 2026-09-15) — `ATTRIBUTION.md` written. SNCZI and
+  Andalucía DERA licenses both still flagged unconfirmed (matches T002,
+  open) — documented honestly rather than assumed, with an explicit
+  "don't ship publicly until these two are closed" note.
 
 ## 11. Metrics (plan.md stage 11)
 
