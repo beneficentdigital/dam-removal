@@ -152,17 +152,28 @@ Homebrew) rather than upgrading the whole project's Python.
   `reduceToVectors`); OmniWaterMask confirmation built and batched
   (`layer3_confirm_owm.py`, ~20s/candidate after batching + dropping
   unneeded OSM building/road checks).
-- [x] **T030a** (new, found 2026-09-14) — River-intersection filter
-  (FR-015): only 23-35% of raw NDWI candidates actually touched a real
-  river line even at 100m tolerance — the rest were disconnected ponds/
-  irrigation reservoirs within the 200m AOI buffer but not on the river
-  itself. Added to `dedup_ndwi_candidates.py` (30m tolerance, spatial
-  join — not a full river-network union, which took 19+ min of CPU for
-  no result). Cuts the candidate set ~3.5x as a side effect (3093 ->
-  870 on the partial basin run so far). **Still needed**: the same
-  filter on Layer 1's full-basin inference once built (T022 was
-  trained on real registry points so isn't affected, but full-basin
-  scanning would hit the same problem).
+- [x] **T030a** (new, found 2026-09-14; anomalous-widening fix wired +
+  validated 2026-09-15) — River-intersection alone was too loose (a
+  plain river-touching test passes every ordinary, un-blocked stretch
+  of river, since a river trivially touches its own line everywhere).
+  Replaced with `filter_to_anomalous_widening()` in
+  `dedup_ndwi_candidates.py`: candidate must extend beyond the river's
+  Strahler-order-scaled normal channel width by >400m2 and >30% of its
+  area to count as impoundment-like. The function was already written
+  2026-09-14 but `__main__` still called the old, since-removed
+  `filter_to_river_touching` — a silent no-op-on-crash bug, now fixed.
+  Run against the 3,517 candidates generated so far (basin pass still
+  in progress): 3,517 -> 601 -> 598 after dedup. Visually validated by
+  rendering 6 kept + 6 rejected candidates over their Sentinel-2 RGB
+  tile: correctly keeps a clear dendritic reservoir shoreline, correctly
+  rejects ordinary river bends and isolated farm ponds near towns. One
+  kept candidate (600m2, next to greenhouse/warehouse structures) looks
+  like a possible NDWI false positive from reflective rooftops rather
+  than real water — an upstream Layer 3 NDWI-generation noise question,
+  not a bug in this filter. **Still needed**: the same filter on Layer
+  1's full-basin inference once built (T022 was trained on real
+  registry points so isn't affected, but full-basin scanning would hit
+  the same problem).
 - [ ] **T030** — In progress: NDWI pass running basin-wide (detached,
   monitored); confirmation pass to follow once it completes and
   candidates are deduped + river-filtered (T030a).

@@ -86,8 +86,8 @@ if __name__ == "__main__":
     geoms = [shape(r["geometry"]) for r in records]
     gdf = gpd.GeoDataFrame(records, geometry=geoms, crs="EPSG:4326").to_crs(epsg=25830)
 
-    gdf = filter_to_river_touching(gdf)
-    print(f"Filtered to river-touching (within {RIVER_TOLERANCE_M}m): {len(records)} -> {len(gdf)}")
+    gdf = filter_to_anomalous_widening(gdf)
+    print(f"Filtered to anomalous widening (excess >{MIN_EXCESS_AREA_M2}m2 and >{MIN_EXCESS_FRACTION:.0%}): {len(records)} -> {len(gdf)}")
 
     # Sort by area descending so the largest fragment of a split water
     # body is kept as the representative.
