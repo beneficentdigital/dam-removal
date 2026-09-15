@@ -15,10 +15,18 @@ naturally wider) rather than one fixed width for every stream size.
 
 A separate, real data gap (not a design bug) was also found in the
 same review: EU-Hydro maps the Guadalquivir's marshy delta/estuary
-near Doñana poorly (127m from the nearest line for a real river reach)
--- that's what constitution.md's Spain-specific hydrography supplement
-(IGN's Red Hidrográfica) was meant to fix but was never actually
-pulled. Not addressed here; still open.
+near Doñana poorly (127m from the nearest line for a real river reach).
+constitution.md's Spain-specific hydrography supplement (IGN's Red
+Hidrográfica, 61k features, pulled 2026-09-15) is folded in here as a
+second river-line source, per the explicit decision to use it for this
+check only rather than re-tiling the whole AOI (would discard the
+completed Sentinel-2 pull and restart the in-progress NDWI pass for
+uncertain gain). Red Hidrográfica has no Strahler-order field, so it
+only gets a fixed default half-width (the same fallback already used
+for EU-Hydro segments with unknown order) -- it can't sharpen the
+width-scaling, only catch candidates near tributaries EU-Hydro's
+sparser network misses entirely. Any river reach missing from *both*
+networks is still an open gap (e.g. the Doñana delta).
 """
 
 import json
@@ -31,6 +39,7 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 IN_PATH = os.path.join(PROJECT_ROOT, "data/processed/layer3_water_candidates.jsonl")
 OUT_PATH = os.path.join(PROJECT_ROOT, "data/processed/layer3_water_candidates_deduped.jsonl")
 RIVERS_PATH = os.path.join(PROJECT_ROOT, "data/processed/eu_hydro_guadalquivir_clipped.gpkg")
+RED_HIDRO_PATH = os.path.join(PROJECT_ROOT, "data/raw/red_hidrografica_watercourses.gpkg")
 DEDUP_RADIUS_M = 50
 RIVER_TOLERANCE_M = 30  # for "is this even near a river at all" pre-filter
 
@@ -38,6 +47,7 @@ RIVER_TOLERANCE_M = 30  # for "is this even near a river at all" pre-filter
 # candidate must extend meaningfully beyond this to count as anomalous
 # widening. Rough Mediterranean-basin estimates, not measured.
 NORMAL_HALF_WIDTH_BY_STRAHLER = {1: 3, 2: 4, 3: 6, 4: 10, 5: 15, 6: 25, 7: 40, 8: 60, 9: 80}
+DEFAULT_HALF_WIDTH_M = 10  # fallback for segments with no Strahler order (incl. all of Red Hidrografica)
 MIN_EXCESS_AREA_M2 = 400  # ~20x20m of clearly-anomalous pooling
 MIN_EXCESS_FRACTION = 0.3  # or 30%+ of the candidate sits outside normal channel
 
@@ -45,24 +55,43 @@ MIN_EXCESS_FRACTION = 0.3  # or 30%+ of the candidate sits outside normal channe
 def filter_to_anomalous_widening(gdf_m: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     rivers = gpd.read_file(RIVERS_PATH).to_crs(epsg=25830)
     rivers = rivers[rivers["STRAHLER"].notna()]
-    rivers["half_width"] = rivers["STRAHLER"].astype(int).map(NORMAL_HALF_WIDTH_BY_STRAHLER).fillna(10)
-    rivers["normal_channel"] = rivers.apply(lambda r: r.geometry.buffer(r["half_width"]), axis=1)
-    normal_channel_gdf = gpd.GeoDataFrame(geometry=rivers["normal_channel"], crs=rivers.crs)
+    rivers["half_width"] = rivers["STRAHLER"].astype(int).map(NORMAL_HALF_WIDTH_BY_STRAHLER).fillna(DEFAULT_HALF_WIDTH_M)
+
+    red_hidro = gpd.read_file(RED_HIDRO_PATH).to_crs(epsg=25830)
+    red_hidro["half_width"] = DEFAULT_HALF_WIDTH_M
+
+    all_rivers = gpd.GeoDataFrame(
+        {"half_width": list(rivers["half_width"]) + list(red_hidro["half_width"])},
+        geometry=list(rivers.geometry) + list(red_hidro.geometry),
+        crs=rivers.crs,
+    )
+    all_rivers["normal_channel"] = all_rivers.apply(lambda r: r.geometry.buffer(r["half_width"]), axis=1)
+    normal_channel_gdf = gpd.GeoDataFrame(geometry=all_rivers["normal_channel"], crs=all_rivers.crs)
 
     # Pre-filter: must be within reach of a river at all (cheap, avoids
     # doing the expensive difference() on obviously-unrelated candidates).
-    rivers_wide = rivers.copy()
-    rivers_wide["geometry"] = rivers.geometry.buffer(RIVER_TOLERANCE_M)
+    rivers_wide = all_rivers.copy()
+    rivers_wide["geometry"] = all_rivers.geometry.buffer(RIVER_TOLERANCE_M)
     joined = gpd.sjoin(gdf_m, rivers_wide[["geometry"]], how="left", predicate="intersects")
     near_river = joined.groupby(joined.index)["index_right"].apply(lambda x: x.notna().any())
     candidates = gdf_m[near_river.reindex(gdf_m.index, fill_value=False)].copy()
 
     # For each surviving candidate, subtract the normal-channel buffer of
-    # every nearby river segment and check how much area is left over.
-    normal_union = normal_channel_gdf.geometry.union_all()
+    # only the NEARBY river segments (via spatial index) and check how
+    # much area is left over. A single global union_all() over the whole
+    # ~78k-segment combined network is the same trap constitution.md
+    # already hit once for a full river-network union (19+ min of CPU for
+    # no result) -- localizing to each candidate's own neighborhood keeps
+    # each union small instead of rebuilding the whole basin's geometry
+    # once per candidate.
+    channel_sindex = normal_channel_gdf.sindex
     keep_idx = []
     for idx, row in candidates.iterrows():
-        excess = row.geometry.difference(normal_union)
+        nearby_pos = list(channel_sindex.query(row.geometry, predicate="intersects"))
+        if not nearby_pos:
+            continue
+        local_union = normal_channel_gdf.geometry.iloc[nearby_pos].union_all()
+        excess = row.geometry.difference(local_union)
         excess_area = excess.area
         total_area = row.geometry.area
         if excess_area > MIN_EXCESS_AREA_M2 and (total_area == 0 or excess_area / total_area > MIN_EXCESS_FRACTION):

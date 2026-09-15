@@ -45,13 +45,18 @@ constitution principle 3.
   Bonus find in the same WFS: `hy-p:DamOrWeir` (28,774 features
   nationally) — a 5th ground-truth source not yet pulled or merged into
   `ground_truth_guadalquivir.csv`.
-- [ ] **T009** — Union T007 + T008 (once confirmed complete), buffer
-  200m either side, split into AOI tiles. **Not done** — the existing
-  2,369-tile manifest and all Sentinel-2/DEM pulls so far were built
-  from EU-Hydro alone; redoing this with the denser network would
-  change the tile grid. Decide whether to redo the AOI with the fuller
-  network or treat Red Hidrográfica as a river-line source for the
-  Layer 3 anomalous-widening fix (spec.md FR-015) without re-tiling.
+- [x] **T009** (resolved 2026-09-15, not the originally-planned way) —
+  Decided against re-tiling: the 2,369-tile manifest and the in-progress
+  NDWI basin pass stay on the EU-Hydro-only grid, so the completed
+  Sentinel-2 pull and DEM chunks aren't discarded. Instead Red
+  Hidrográfica is folded into `dedup_ndwi_candidates.py` as a second
+  river-line source for the anomalous-widening check only (T030a): it
+  gets a fixed default half-width, since it has no Strahler-order field
+  to scale by, but still lets small tributaries EU-Hydro's sparser
+  network misses count as "normal channel" instead of false-flagging as
+  anomalous widening. Any reach missing from *both* networks (e.g. the
+  Doñana delta) is still an open gap — no imagery tile exists there at
+  all, since tiling itself wasn't touched.
 
 ## 2. Ground truth ingestion (plan.md stage 1)
 
@@ -170,10 +175,18 @@ Homebrew) rather than upgrading the whole project's Python.
   kept candidate (600m2, next to greenhouse/warehouse structures) looks
   like a possible NDWI false positive from reflective rooftops rather
   than real water — an upstream Layer 3 NDWI-generation noise question,
-  not a bug in this filter. **Still needed**: the same filter on Layer
-  1's full-basin inference once built (T022 was trained on real
-  registry points so isn't affected, but full-basin scanning would hit
-  the same problem).
+  not a bug in this filter. Red Hidrográfica folded in as a second
+  river source 2026-09-15 (see T009): 3,583 -> 589 -> 587 after dedup,
+  slightly fewer kept than the EU-Hydro-only run since some previously
+  "anomalous" candidates turned out to sit on a real tributary EU-Hydro
+  didn't have. The naive version (one global `union_all()` over the
+  combined ~78k-segment network) hit the same expensive-full-union trap
+  constitution.md already flagged once (19+ min of CPU for no result);
+  switched to a local per-candidate union via spatial index instead, and
+  the whole filter now runs in ~11s. **Still needed**: the same filter
+  on Layer 1's full-basin inference once built (T022 was trained on
+  real registry points so isn't affected, but full-basin scanning would
+  hit the same problem).
 - [ ] **T030** — In progress: NDWI pass running basin-wide (detached,
   monitored); confirmation pass to follow once it completes and
   candidates are deduped + river-filtered (T030a).
