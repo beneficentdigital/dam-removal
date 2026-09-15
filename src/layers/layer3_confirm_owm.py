@@ -55,7 +55,14 @@ def candidate_key(cand: dict) -> str:
     return f"{cand['tile_id']}_{lon:.6f}_{lat:.6f}"
 
 
-def pull_crop_via_main_python(lon: float, lat: float, out_path: str) -> bool:
+def pull_crop_via_main_python(lon: float, lat: float, out_path: str) -> str:
+    """Returns 'OK', 'NO_COVERAGE' (genuinely no S2 scene there -- safe to
+    permanently skip), or 'ERROR:<reason>' (transient: timeout, exception,
+    quota -- must NOT be treated as permanently done, or a rerun can never
+    retry it). Conflating these was the real bug behind the 567-candidate
+    run coming back 0/567 "no coverage": every transient failure got
+    written to the progress log exactly like a real no-coverage result,
+    permanently blocking a retry (found + fixed 2026-09-15)."""
     script = f"""
 import ee
 ee.Initialize(project='sincere-kit-507519-u3')
@@ -70,8 +77,18 @@ else:
     urllib.request.urlretrieve(url, '{out_path}')
     print('OK')
 """
-    result = subprocess.run(["python3", "-c", script], capture_output=True, text=True, timeout=60)
-    return "OK" in result.stdout
+    try:
+        result = subprocess.run(["python3", "-c", script], capture_output=True, text=True, timeout=90)
+    except subprocess.TimeoutExpired:
+        print(f"  crop pull TIMEOUT for ({lon:.5f},{lat:.5f})")
+        return "ERROR:timeout"
+    if "OK" in result.stdout:
+        return "OK"
+    if "NO_COVERAGE" in result.stdout:
+        return "NO_COVERAGE"
+    reason = result.stderr.strip().splitlines()[-1] if result.stderr.strip() else "(no output)"
+    print(f"  crop pull failed for ({lon:.5f},{lat:.5f}): {reason}")
+    return f"ERROR:{reason[:200]}"
 
 
 if __name__ == "__main__":
@@ -113,30 +130,34 @@ if __name__ == "__main__":
         lon, lat = polygon_centroid(cand["geometry"])
         crop_path = os.path.join(CROP_DIR, f"{key}.tif")
         if os.path.exists(crop_path):
-            return i, crop_path, lon, lat
-        ok = pull_crop_via_main_python(lon, lat, crop_path)
-        return (i, crop_path, lon, lat) if ok else (i, None, lon, lat)
+            return i, crop_path, lon, lat, "OK"
+        status = pull_crop_via_main_python(lon, lat, crop_path)
+        return (i, crop_path if status == "OK" else None, lon, lat, status)
 
     lonlat = {}
+    pull_status = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=PULL_CONCURRENCY) as pool:
         futures = [pool.submit(pull_one, i, c, keys[i]) for i, c in enumerate(candidates)]
         for fut in concurrent.futures.as_completed(futures):
-            i, path, lon, lat = fut.result()
+            i, path, lon, lat, status = fut.result()
             crop_paths[i] = path
             lonlat[i] = (lon, lat)
+            pull_status[i] = status
 
     valid = [(i, p) for i, p in enumerate(crop_paths) if p is not None]
-    no_coverage = [i for i, p in enumerate(crop_paths) if p is None]
-    print(f"Pulled {len(valid)}/{len(candidates)} crops (rest had no imagery coverage)")
+    no_coverage = [i for i, s in pull_status.items() if s == "NO_COVERAGE"]
+    errored = [i for i, s in pull_status.items() if s.startswith("ERROR")]
+    print(f"Pulled {len(valid)}/{len(candidates)} crops ({len(no_coverage)} no coverage, {len(errored)} transient errors -- left unscored to retry)")
 
     from omniwatermask import make_water_mask
 
     progress_f = open(PROGRESS_PATH, "a")
     out_f = open(OUT_PATH, "a")
 
-    # No-coverage candidates are still "done" for this run's purposes --
-    # record them so a rerun doesn't keep retrying a lookup that will
-    # fail again.
+    # Only genuine no-coverage results are permanently "done" -- a
+    # transient error (timeout, exception, quota) must NOT be recorded
+    # here, or a rerun can never retry it (2026-09-15 bug, see
+    # pull_crop_via_main_python's docstring).
     for i in no_coverage:
         progress_f.write(json.dumps({"key": keys[i], "confirmed": False, "reason": "no_coverage"}) + "\n")
     progress_f.flush()
