@@ -25,7 +25,10 @@ CANDIDATES_PATH = os.path.join(PROJECT_ROOT, "data/processed/layer3_water_candid
 CROP_DIR = os.path.join(PROJECT_ROOT, "data/raw/layer3_confirm_crops")
 MASK_DIR = os.path.join(PROJECT_ROOT, "data/raw/layer3_confirm_masks")
 OUT_PATH = os.path.join(PROJECT_ROOT, "data/processed/layer3_confirmed.jsonl")
-BUFFER_M = 150
+PROGRESS_PATH = os.path.join(PROJECT_ROOT, "data/processed/layer3_confirm_progress.jsonl")
+BUFFER_M = 200  # >=32px margin at 10m/px after reprojection rounding -- 150m
+# produced a 31x32 crop for at least one real candidate (OmniWaterMask's
+# hard 32px minimum), found 2026-09-15 probing real candidates
 BATCH_SIZE = 8
 PULL_CONCURRENCY = 6
 
@@ -40,6 +43,16 @@ def polygon_centroid(geometry: dict) -> tuple:
 
     c = shape(geometry).centroid
     return c.x, c.y
+
+
+def candidate_key(cand: dict) -> str:
+    """Stable identity across reruns even as dedup_ndwi_candidates.py's
+    output order/count shifts (more NDWI tiles finish, dedup reruns) --
+    keyed on tile + rounded centroid rather than list position, so
+    resuming after an interruption (constitution.md principle 3) doesn't
+    require the candidate file to be frozen."""
+    lon, lat = polygon_centroid(cand["geometry"])
+    return f"{cand['tile_id']}_{lon:.6f}_{lat:.6f}"
 
 
 def pull_crop_via_main_python(lon: float, lat: float, out_path: str) -> bool:
@@ -69,7 +82,19 @@ if __name__ == "__main__":
     with open(CANDIDATES_PATH) as f:
         for line in f:
             candidates.append(json.loads(line))
-    print(f"{len(candidates)} deduped NDWI candidates to confirm")
+    print(f"{len(candidates)} deduped NDWI candidates total")
+
+    # Resumability (constitution.md principle 3): skip candidates already
+    # scored by a prior run, keyed by tile+centroid rather than list
+    # position, since dedup_ndwi_candidates.py's output reorders/regrows
+    # as the basin-wide NDWI pass keeps producing new candidates.
+    done_keys = set()
+    if os.path.exists(PROGRESS_PATH):
+        with open(PROGRESS_PATH) as f:
+            for line in f:
+                done_keys.add(json.loads(line)["key"])
+    candidates = [c for c in candidates if candidate_key(c) not in done_keys]
+    print(f"{len(candidates)} not yet scored ({len(done_keys)} already done)")
 
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else None
     if limit:
@@ -78,13 +103,15 @@ if __name__ == "__main__":
     # Pull all crops first (concurrently -- I/O-bound, same pattern as
     # pull_imagery.py), so the batched OmniWaterMask call below sees a
     # ready set of local files rather than pulling one-by-one in between
-    # inference batches.
+    # inference batches. Crop filenames are keyed the same way so a crop
+    # already pulled by an earlier, interrupted run is reused.
     print("Pulling crops...")
     crop_paths = [None] * len(candidates)
+    keys = [candidate_key(c) for c in candidates]
 
-    def pull_one(i, cand):
+    def pull_one(i, cand, key):
         lon, lat = polygon_centroid(cand["geometry"])
-        crop_path = os.path.join(CROP_DIR, f"cand_{i:05d}.tif")
+        crop_path = os.path.join(CROP_DIR, f"{key}.tif")
         if os.path.exists(crop_path):
             return i, crop_path, lon, lat
         ok = pull_crop_via_main_python(lon, lat, crop_path)
@@ -92,49 +119,80 @@ if __name__ == "__main__":
 
     lonlat = {}
     with concurrent.futures.ThreadPoolExecutor(max_workers=PULL_CONCURRENCY) as pool:
-        futures = [pool.submit(pull_one, i, c) for i, c in enumerate(candidates)]
+        futures = [pool.submit(pull_one, i, c, keys[i]) for i, c in enumerate(candidates)]
         for fut in concurrent.futures.as_completed(futures):
             i, path, lon, lat = fut.result()
             crop_paths[i] = path
             lonlat[i] = (lon, lat)
 
     valid = [(i, p) for i, p in enumerate(crop_paths) if p is not None]
+    no_coverage = [i for i, p in enumerate(crop_paths) if p is None]
     print(f"Pulled {len(valid)}/{len(candidates)} crops (rest had no imagery coverage)")
 
     from omniwatermask import make_water_mask
 
-    confirmed = []
+    progress_f = open(PROGRESS_PATH, "a")
+    out_f = open(OUT_PATH, "a")
+
+    # No-coverage candidates are still "done" for this run's purposes --
+    # record them so a rerun doesn't keep retrying a lookup that will
+    # fail again.
+    for i in no_coverage:
+        progress_f.write(json.dumps({"key": keys[i], "confirmed": False, "reason": "no_coverage"}) + "\n")
+    progress_f.flush()
+
+    n_confirmed = 0
     for batch_start in range(0, len(valid), BATCH_SIZE):
         batch = valid[batch_start : batch_start + BATCH_SIZE]
-        batch_paths = [Path(p) for _, p in batch]
-        try:
+
+        def run_mask(items):
+            paths = [Path(p) for _, p in items]
             result_paths = make_water_mask(
-                scene_paths=batch_paths,
+                scene_paths=paths,
                 band_order=[1, 2, 3, 4],
-                batch_size=BATCH_SIZE,
+                batch_size=len(paths),
                 output_dir=Path(MASK_DIR),
                 overwrite=False,
                 use_osm_building=False,
                 use_osm_roads=False,
             )
-        except Exception as e:
-            print(f"  batch {batch_start}: failed ({e})")
-            continue
+            return list(zip(items, result_paths))
 
-        import numpy as np
+        try:
+            scored = run_mask(batch)
+        except Exception as e:
+            # One malformed crop (e.g. an off-by-a-pixel undersized crop,
+            # found 2026-09-15) fails the whole batch under make_water_mask's
+            # batching -- fall back to one-at-a-time so the other 7 good
+            # crops in the batch aren't wasted along with the bad one.
+            print(f"  batch {batch_start}: failed as a batch ({e}), retrying items individually")
+            scored = []
+            for item in batch:
+                try:
+                    scored.extend(run_mask([item]))
+                except Exception as e2:
+                    i = item[0]
+                    print(f"  {keys[i]}: failed individually too ({e2}), skipping")
+                    progress_f.write(json.dumps({"key": keys[i], "confirmed": False, "reason": "mask_error"}) + "\n")
+
         import rasterio
 
-        for (i, _), mask_path in zip(batch, result_paths):
+        for (i, _), mask_path in scored:
             with rasterio.open(mask_path) as src:
                 mask = src.read(1)
-            water_frac = (mask > 0).mean()
+            water_frac = float((mask > 0).mean())
             is_confirmed = water_frac > 0.01
             lon, lat = lonlat[i]
-            print(f"  cand_{i:05d}: water_frac={water_frac:.3f} confirmed={is_confirmed}")
+            print(f"  {keys[i]}: water_frac={water_frac:.3f} confirmed={is_confirmed}")
+            progress_f.write(json.dumps({"key": keys[i], "confirmed": is_confirmed, "water_frac": water_frac}) + "\n")
             if is_confirmed:
-                confirmed.append({**candidates[i], "lon": lon, "lat": lat, "water_frac": float(water_frac)})
+                out_f.write(json.dumps({**candidates[i], "lon": lon, "lat": lat, "water_frac": water_frac}) + "\n")
+                n_confirmed += 1
+        # Flush after every batch, not just at the end, so a kill mid-run
+        # loses at most one batch of progress rather than everything.
+        progress_f.flush()
+        out_f.flush()
 
-    with open(OUT_PATH, "w") as f:
-        for c in confirmed:
-            f.write(json.dumps(c) + "\n")
-    print(f"\nConfirmed {len(confirmed)}/{len(valid)} candidates -> {OUT_PATH}")
+    progress_f.close()
+    out_f.close()
+    print(f"\nConfirmed {n_confirmed}/{len(valid)} newly-scored candidates -> {OUT_PATH}")
