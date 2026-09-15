@@ -188,15 +188,38 @@ Homebrew) rather than upgrading the whole project's Python.
   real registry points so isn't affected, but full-basin scanning would
   hit the same problem).
 - [ ] **T030** — In progress, two detached jobs running concurrently
-  (2026-09-15): the basin-wide NDWI candidate pass (unchanged, still
-  running), and now also `layer3_confirm_owm.py` against whatever's
-  currently in the deduped candidate file, resumable so it picks up new
-  candidates as NDWI produces + dedup regenerates them rather than
-  waiting for NDWI to finish first. Probing it against real candidates
-  (before committing to the full ~2-6hr run, per constitution.md
-  principle 3) found and fixed two bugs — see the commit for
-  `layer3_confirm_owm.py`. 28/587 candidates confirmed so far (16 from
-  an earlier session's probe, 12 from this session's).
+  (2026-09-15): the basin-wide NDWI candidate pass and
+  `layer3_confirm_owm.py`, resumable so confirm picks up new candidates
+  as NDWI produces + dedup regenerates them rather than waiting for NDWI
+  to finish first.
+
+  A local network outage during this run (DNS resolution failing for
+  both `oauth2.googleapis.com`, breaking EE auth, and Overture Maps'
+  S3/STAC endpoints) hit both jobs simultaneously and surfaced two
+  distinct, real findings:
+  - **NDWI job**: 147 tiles marked `failed` during the outage window.
+    Not a bug — `get_pending_with_geometry`'s `WHERE {stage} != 'done'`
+    already treats `failed` as retriable — but this one continuous
+    process loaded its pending list once at launch hours earlier, so it
+    won't revisit tiles that failed mid-run. **Needs a rerun of
+    `layer3_water_signature.py` once the current pass exhausts its
+    original queue** to pick the 147 back up (a fresh invocation
+    requeries the manifest, which will include them).
+  - **Confirm job**: a real, serious bug, not just a network hiccup.
+    OmniWaterMask handles one scene's target-build failure (e.g. from
+    that same Overture outage) by logging an error and skipping it —
+    no exception raised, no padding of its return list. The confirm
+    script was matching outputs back to inputs by `zip()` position, so
+    every result *after* a mid-batch skip got silently attributed to
+    the wrong candidate. A run that printed a clean "Confirmed 400/557"
+    could have been silently wrong for an unknown fraction of those 400.
+    Fixed by matching outputs to inputs by filename instead of
+    position. Rolled `layer3_confirmed.jsonl` and
+    `layer3_confirm_progress.jsonl` back to the last verified-safe
+    checkpoint (38 entries, from before this run) rather than trying to
+    guess which of the 400 survived unaffected — the discarded run's
+    output is backed up locally (not committed, data/ is gitignored).
+    Relaunched with the fix; 44/587 confirmed as of the relaunch.
 
 ## 7. Layer 4 — ecological/algae (plan.md stage 6)
 
