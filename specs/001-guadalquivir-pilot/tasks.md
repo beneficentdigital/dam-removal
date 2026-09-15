@@ -187,9 +187,16 @@ Homebrew) rather than upgrading the whole project's Python.
   on Layer 1's full-basin inference once built (T022 was trained on
   real registry points so isn't affected, but full-basin scanning would
   hit the same problem).
-- [ ] **T030** — In progress: NDWI pass running basin-wide (detached,
-  monitored); confirmation pass to follow once it completes and
-  candidates are deduped + river-filtered (T030a).
+- [ ] **T030** — In progress, two detached jobs running concurrently
+  (2026-09-15): the basin-wide NDWI candidate pass (unchanged, still
+  running), and now also `layer3_confirm_owm.py` against whatever's
+  currently in the deduped candidate file, resumable so it picks up new
+  candidates as NDWI produces + dedup regenerates them rather than
+  waiting for NDWI to finish first. Probing it against real candidates
+  (before committing to the full ~2-6hr run, per constitution.md
+  principle 3) found and fixed two bugs — see the commit for
+  `layer3_confirm_owm.py`. 28/587 candidates confirmed so far (16 from
+  an earlier session's probe, 12 from this session's).
 
 ## 7. Layer 4 — ecological/algae (plan.md stage 6)
 
