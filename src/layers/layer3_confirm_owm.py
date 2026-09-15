@@ -177,7 +177,25 @@ if __name__ == "__main__":
                 use_osm_building=False,
                 use_osm_roads=False,
             )
-            return list(zip(items, result_paths))
+            # Match each output back to its source crop by filename, not
+            # position. OmniWaterMask silently drops a scene from its
+            # return list (no exception) when that one scene's vector
+            # targets fail to build -- e.g. the Overture Maps network
+            # outage hit here 2026-09-15 -- so result_paths can be
+            # shorter than items, and zipping positionally then
+            # attributes every result AFTER the drop to the wrong
+            # candidate. Output filenames are "{input_stem}_{version}.tif",
+            # so the input stem is always a safe, unambiguous prefix.
+            by_stem = {Path(p).stem: (i, p) for i, p in items}
+            scored = []
+            for result_path in result_paths:
+                result_path = Path(result_path)
+                matched = next((v for stem, v in by_stem.items() if result_path.stem.startswith(stem + "_")), None)
+                if matched is None:
+                    print(f"  WARNING: output {result_path.name} didn't match any input in this batch, dropping it")
+                    continue
+                scored.append((matched, result_path))
+            return scored
 
         try:
             scored = run_mask(batch)
