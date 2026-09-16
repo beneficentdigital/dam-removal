@@ -107,16 +107,48 @@ constitution principle 3.
   + 17 held out (FR-007a), saved to
   `data/processed/layer1_annotation_training_set.csv` and
   `layer1_holdout_set.csv`.
-- [ ] **T019** — Set up a `segment-geospatial` (SAM) assisted annotation
-  workflow: click each selected dam's location, review/adjust the
-  proposed box.
-- [ ] **T020** — Depends on T019. Annotate the training portion of T018's
-  set.
-- [ ] **T021** — Fine-tune RBOD's YOLOv8x-OBB (or adapt Sun et al.'s
-  checkpoint) on the annotated training set.
-- [ ] **T022** — Run Layer 1 inference across all imagery tiles; project
-  each detection's centroid onto the nearest river-line point (canonical
-  point rule, plan.md stage 3/7) rather than reporting the raw centroid.
+- [x] **T019/T020** (superseded, done 2026-09-16) — Constitution.md's
+  2026-09-14 revision already dropped the SAM click-through workflow in
+  favor of the micro-pilot's automated color-threshold heuristic
+  ("speed now explicitly outweighs the marginal accuracy gain from
+  manual annotation") — tasks.md just never got updated to say so.
+  `src/layers/generate_layer1_boxes.py` runs that heuristic against the
+  66 real PNOA training crops (`data/raw/pnoa_crops/`, already pulled).
+  **Real finding**: the raw heuristic produced exactly-full-frame boxes
+  for 28/58 (48%) of crops — a qualitatively different failure from
+  "the water body is just large" (the micro-pilot's proven run only hit
+  this 5/28 times) — visually these are crops with no dam visible at
+  all (georeferencing gaps, or barrier types too small to show from
+  above), where the color threshold falls back to catching roads/shadow
+  across the whole frame. Added an area-fraction rejection (>85% of
+  frame -> discard) rather than train on a label saying "the object is
+  the entire image." Final clean set: 28/66 crops with a usable box.
+- [x] **T021** (done 2026-09-16) — `src/layers/train_layer1.py`:
+  YOLOv8n fine-tuned on the 28 clean boxes, 50 epochs (~6 min on this
+  hardware). **Held-out recall: 16/17 (94%)** on the untouched holdout
+  set (`layer1_holdout_set.csv`, PNOA crops pulled separately to
+  `data/raw/pnoa_crops_holdout/`) — better than the micro-pilot's
+  proven 11/12, on a more geographically diverse real sample. The one
+  miss is a RAMP/BED SILL, a small in-channel structure type expected
+  to be hardest to see from above. Some holdout crops get 2-4
+  overlapping boxes at varying confidence (loose training-box
+  supervision) — fine for a per-crop go/no-go recall check, but
+  basin-wide inference (T022) will need real NMS/dedup across tile
+  boundaries, not just "did it fire at all."
+- [ ] **T022** — Not started. Run Layer 1 inference across all imagery
+  tiles; project each detection's centroid onto the nearest river-line
+  point (canonical point rule, plan.md stage 3/7) rather than reporting
+  the raw centroid. **Blocked on a real open question, not yet
+  scoped**: constitution.md requires real PNOA (not Sentinel-2) for
+  Layer 1, and PNOA10 has zero Earth Engine coverage of this basin
+  (T015) — the 83 training/holdout crops were pulled individually via
+  IGN's WMS (`pull_pnoa_crops.py`, 300m boxes around known points), but
+  full-basin *coverage* (not just known points) at PNOA's 0.25-0.5m
+  resolution needs real tiling: the existing 5km Sentinel-2 grid would
+  be 10,000-20,000px/side per WMS request, far past any sane request
+  size (research-brief.md's 2026-09-12 scaling note). Needs a proper
+  tile-size decision and a cost/volume probe before committing to a
+  full pull.
 
 ## 5. Layer 2 — DEM/hydrological — STOPPED 2026-09-14 (plan.md stage 4)
 
