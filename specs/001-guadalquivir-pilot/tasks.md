@@ -187,11 +187,21 @@ Homebrew) rather than upgrading the whole project's Python.
   on Layer 1's full-basin inference once built (T022 was trained on
   real registry points so isn't affected, but full-basin scanning would
   hit the same problem).
-- [ ] **T030** — In progress, two detached jobs running concurrently
-  (2026-09-15): the basin-wide NDWI candidate pass and
-  `layer3_confirm_owm.py`, resumable so confirm picks up new candidates
-  as NDWI produces + dedup regenerates them rather than waiting for NDWI
-  to finish first.
+- [x] **T030** (complete 2026-09-16) — Basin-wide NDWI pass finished:
+  2,369/2,369 tiles, 0 failed (the mop-up below cleared all of them).
+  Confirmation pass finished against the stable final candidate set:
+  845 deduped candidates, all scored, 822 confirmed as real water/dam
+  signatures. See the network-outage findings below for what it took to
+  get here — two real bugs surfaced and fixed along the way, plus one
+  operational lesson (a single-shot auto-relaunch isn't enough; the
+  monitor needed to retry every check, not just once, after a launch
+  attempt silently died to a second network blip and sat idle 6+ hours
+  before being caught).
+
+  Two detached jobs ran concurrently (2026-09-15): the basin-wide NDWI
+  candidate pass and `layer3_confirm_owm.py`, resumable so confirm
+  picks up new candidates as NDWI produces + dedup regenerates them
+  rather than waiting for NDWI to finish first.
 
   A local network outage during this run (DNS resolution failing for
   both `oauth2.googleapis.com`, breaking EE auth, and Overture Maps'
@@ -220,6 +230,17 @@ Homebrew) rather than upgrading the whole project's Python.
     guess which of the 400 survived unaffected — the discarded run's
     output is backed up locally (not committed, data/ is gitignored).
     Relaunched with the fix; 44/587 confirmed as of the relaunch.
+  - **Third issue, found later the same run**: Overture's S3 endpoint
+    (OmniWaterMask's default vector-source for the water target) hung
+    the confirm job twice — 8s+ for a bare request when Google's own
+    endpoints answered in <1s, and neither OmniWaterMask's internal
+    retry/timeout nor a later relaunch (once even after the network had
+    otherwise recovered) reliably bounded the wait; needed a manual
+    kill each time. Fixed at the root by switching `vector_source` from
+    the default `"overture"` to `"osm"` (OmniWaterMask's own error
+    message names this as the intended workaround) — Overpass hit one
+    transient 504 afterward but retried with a bounded 55s wait and
+    succeeded, instead of hanging indefinitely.
 
 ## 7. Layer 4 — ecological/algae (plan.md stage 6)
 
@@ -278,28 +299,46 @@ Homebrew) rather than upgrading the whole project's Python.
 
 ## 10. Outputs (plan.md stage 10)
 
-- [x] **T037** (code done 2026-09-15, ran on the 27-candidate smoke
-  test, not final data) — `src/output/generate_outputs.py` writes
-  `pilot_output.csv` from `fused_candidates.csv`: lat, lon, layers,
-  n_layers, confidence + per-layer breakdown, match_status, matched
-  source/id/distance, source_refs (FR-008 + constitution.md principle 5
-  provenance).
-- [x] **T038** (code done 2026-09-15, ran for real) — same script writes
-  `review_uncertain.csv` with an `ee_thumbnail_url` per row (FR-013).
-  Two real bugs found and fixed while probing a single thumbnail before
-  generating all 11 (constitution.md principle 3): a fixed min/max
-  (0-3000, the usual S2 true-color preset) rendered this AOI's actual
-  reflectance (~150-400) as solid black; a shared min/max across all
-  three bands then produced a green-wash false-color mess once the
-  range was fixed. Settled on a 400m buffer (wide enough to show
-  riverbank/land context, not just a mostly-water crop) with a
-  per-band 2nd-98th-percentile stretch computed from that same AOI.
-  Confirmed publicly fetchable with no auth (curl, HTTP 200). Spot-
-  checking one of the 11 real thumbnails turned out to be a genuine,
-  useful catch: an "uncertain" candidate near the Doñana coast that's
-  visibly an ocean beach town, not a river structure at all — concrete
-  evidence for T034's Doñana-delta-gap hypothesis, and a real
-  demonstration that the review step does its job.
+- [x] **T037** (real full-basin run 2026-09-16) —
+  `src/output/generate_outputs.py` writes `pilot_output.csv` from
+  `fused_candidates.csv`: lat, lon, layers, n_layers, confidence +
+  per-layer breakdown, match_status, matched source/id/distance,
+  source_refs (FR-008 + constitution.md principle 5 provenance). Real
+  result against the complete, final Layer 3 dataset (822 confirmed
+  candidates -> 816 fused): **24 known, 62 new-confirmed, 730
+  new-uncertain**. This is a Layer-3-only result (Layer 1 untrained,
+  Layer 2 stopped) — see T034's still-open point-alignment finding
+  before reading the `known` count as final, and see the note below on
+  why `new-uncertain` is so large with only one active layer.
+- [x] **T038** (real full-basin run 2026-09-16) — same script writes
+  `review_uncertain.csv` with an `ee_thumbnail_url` per row (FR-013),
+  now for all 730 real new-uncertain rows (730 individual Earth Engine
+  calls, ~1h40m wall time, 0 failures). Two real bugs found and fixed
+  while probing a single thumbnail before generating the first batch
+  (constitution.md principle 3): a fixed min/max (0-3000, the usual S2
+  true-color preset) rendered this AOI's actual reflectance (~150-400)
+  as solid black; a shared min/max across all three bands then produced
+  a green-wash false-color mess once the range was fixed. Settled on a
+  400m buffer (wide enough to show riverbank/land context, not just a
+  mostly-water crop) with a per-band 2nd-98th-percentile stretch
+  computed from that same AOI. Confirmed publicly fetchable with no
+  auth (curl, HTTP 200). Spot-checking one of the early real thumbnails
+  turned out to be a genuine, useful catch: an "uncertain" candidate
+  near the Doñana coast that's visibly an ocean beach town, not a river
+  structure at all — concrete evidence for T034's Doñana-delta-gap
+  hypothesis, and a real demonstration that the review step does its
+  job.
+
+  **Why new-uncertain is 730/816 (89%) on this run**: FR-005a's
+  new-confirmed rule needs either 2+ independent layers agreeing, or a
+  single layer at confidence >=0.85 — with only Layer 3 active so far,
+  "2+ layers" is structurally impossible, so every candidate below
+  0.85 water_frac defaults to uncertain regardless of how real it looks.
+  This isn't a sign the pipeline is unreliable; it's the expected shape
+  of a single-layer result, and exactly why the human-review tier
+  (constitution.md locked decision) exists. Expect this fraction to
+  drop once Layer 1 and/or Layer 4 contribute real candidates to fuse
+  against.
 - [ ] **T039** — Depends on T036 (not reached — T036 itself not
   started).
 - [x] **T040** (done 2026-09-15) — `ATTRIBUTION.md` written. SNCZI and
