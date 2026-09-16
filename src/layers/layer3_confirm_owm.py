@@ -176,6 +176,12 @@ if __name__ == "__main__":
                 overwrite=False,
                 use_osm_building=False,
                 use_osm_roads=False,
+                # Overture's S3 endpoint (the default vector_source) has
+                # hung this job twice now -- 8s+ for a bare HEAD request
+                # when Google's endpoints answer in <1s, and OmniWaterMask's
+                # own error message suggests this exact fix. Switching to
+                # OSM/Overpass for the water vector target instead.
+                vector_source="osm",
             )
             # Match each output back to its source crop by filename, not
             # position. OmniWaterMask silently drops a scene from its
