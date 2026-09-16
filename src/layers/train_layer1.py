@@ -3,8 +3,22 @@
 as the micro-pilot's train_layer1_micro.py -- axis-aligned YOLOv8n from
 Ultralytics' pretrained checkpoint, not RBOD's oriented-box variant --
 per constitution.md's 2026-09-14 speed-over-manual-annotation decision.
+
+Also includes true-negative background images (no label file, per YOLO
+convention) -- found 2026-09-16 piloting the first version of this
+model on a real sub-area: trained on 28 positive, object-centered crops
+only, it never saw a single "no barrier here" example, so it looked
+great on tightly-cropped holdout points (16/17 recall) but produced
+near-full-frame false positives when scanning raw, mostly-empty
+terrain tiles. `layer1_clean_negatives.json` (built in the same session)
+holds crops verified to have <5% water-like pixels by direct pixel
+fraction, not just "the box heuristic found nothing" -- that check
+alone doesn't distinguish a true empty scene from a scene so dominated
+by water the heuristic's own degenerate-box rejection (>85% of frame)
+kicked in, which is the opposite of a negative example.
 """
 
+import json
 import os
 import shutil
 
@@ -12,7 +26,9 @@ import pandas as pd
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CROPS_DIR = os.path.join(PROJECT_ROOT, "data/raw/pnoa_crops")
+NEGATIVE_CROPS_DIR = os.path.join(PROJECT_ROOT, "data/raw/pnoa_crops_negative")
 BOXES_CSV = os.path.join(PROJECT_ROOT, "data/processed/layer1_boxes.csv")
+CLEAN_NEGATIVES_JSON = os.path.join(PROJECT_ROOT, "data/processed/layer1_clean_negatives.json")
 DATASET_DIR = os.path.join(PROJECT_ROOT, "data/processed/yolo_dataset_full")
 IMG_SIZE = 600  # matches pull_pnoa_crops.py's PIXELS setting
 
@@ -36,6 +52,17 @@ def build_yolo_dataset():
         with open(os.path.join(lbl_dir, f"{stem}.txt"), "w") as f:
             f.write(f"0 {xc:.6f} {yc:.6f} {bw:.6f} {bh:.6f}\n")
 
+    n_neg = 0
+    if os.path.exists(CLEAN_NEGATIVES_JSON):
+        with open(CLEAN_NEGATIVES_JSON) as f:
+            clean_negatives = json.load(f)
+        for filename in clean_negatives:
+            src = os.path.join(NEGATIVE_CROPS_DIR, filename)
+            shutil.copy(src, os.path.join(img_dir, filename))
+            # No label file at all -- YOLO's convention for a background
+            # image with zero objects, not an empty label file.
+            n_neg += 1
+
     yaml_content = f"""path: {DATASET_DIR}
 train: images/train
 val: images/train
@@ -45,7 +72,7 @@ names:
     yaml_path = os.path.join(DATASET_DIR, "dataset.yaml")
     with open(yaml_path, "w") as f:
         f.write(yaml_content)
-    print(f"Built YOLO dataset: {len(df)} images -> {DATASET_DIR}")
+    print(f"Built YOLO dataset: {len(df)} positive + {n_neg} negative images -> {DATASET_DIR}")
     return yaml_path
 
 

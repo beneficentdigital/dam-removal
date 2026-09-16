@@ -20,11 +20,11 @@ from river_network import snap_to_nearest_river_point  # noqa: E402
 
 TILES_DIR = os.path.join(PROJECT_ROOT, "data/raw/pnoa_pilot_area")
 MANIFEST_PATH = os.path.join(PROJECT_ROOT, "data/processed/pnoa_pilot_tiles.gpkg")
-MODEL_PATH = os.path.join(PROJECT_ROOT, "data/processed/yolo_dataset_full/run/weights/best.pt")
-OUT_CSV = os.path.join(PROJECT_ROOT, "data/processed/layer1_pilot_detections.csv")
+MODEL_PATH = os.path.join(PROJECT_ROOT, "data/processed/yolo_dataset_full/run-2/weights/best.pt")
+OUT_CSV = os.path.join(PROJECT_ROOT, "data/processed/layer1_pilot_detections_v2.csv")
 CRS = "EPSG:25830"
 TILE_M = 500
-CONF_THRESHOLD = 0.25
+CONF_THRESHOLD = 0.05
 DEDUP_RADIUS_M = 50
 
 _transformer = pyproj.Transformer.from_crs(CRS, "EPSG:4326", always_xy=True)

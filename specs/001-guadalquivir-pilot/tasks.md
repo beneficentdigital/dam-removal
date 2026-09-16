@@ -185,6 +185,34 @@ constitution principle 3.
   caught before burning the disk/time budget on a model not ready for
   raw-tile scanning.
 
+  **Tried the negative-example fix same session — it didn't work,
+  honest result.** Sampled 40 random points along the river network far
+  (>500m) from any registry point, pulled crops, and found the sampling
+  itself was naively wrong at first: "far from a known dam" doesn't
+  mean "no water" (rivers have water everywhere), and worse, the box
+  heuristic's own >85%-of-frame degenerate-rejection (from T019/T020)
+  meant "no box found" was silently conflating true empty scenes with
+  scenes so dominated by a real reservoir that the heuristic rejected
+  them outright — the opposite of a negative example. Fixed by
+  measuring raw water-pixel fraction directly instead of trusting the
+  box heuristic's null result; kept only the 17/40 crops under 5% water
+  pixels as verified true negatives. Retrained (28 positive + 17
+  negative, same 50-epoch recipe): held-out recall collapsed to 7/17 at
+  the original conf=0.25 threshold — recovers to 16/17 at conf=0.05,
+  but re-piloting the same sub-area at that lower threshold produced
+  *more* raw detections (395 vs 94) with essentially the same
+  signal-to-noise ratio (12/395 = 3% within 30m of real ground truth,
+  vs 1/94 = 1% before; the overall distance distribution actually got
+  slightly worse, mean 1107m vs 948m). 17 negatives against 28
+  positives, 50 epochs, was enough to recalibrate the model's confidence
+  scale but not enough to teach real discrimination — this needs
+  meaningfully more negative examples (matching or exceeding the
+  positive count) and likely hard-negative mining from the actual
+  false-positive tiles already found, not a quick patch. Leaving this
+  here rather than continuing to iterate blindly on model tuning within
+  this session; T022 stays not-recommended for a full-basin pull until
+  a real fix lands and re-validates against this same pilot area.
+
 ## 5. Layer 2 — DEM/hydrological — STOPPED 2026-09-14 (plan.md stage 4)
 
 Fallback invoked per constitution.md after three failed scaling
