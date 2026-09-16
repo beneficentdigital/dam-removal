@@ -135,20 +135,55 @@ constitution principle 3.
   supervision) — fine for a per-crop go/no-go recall check, but
   basin-wide inference (T022) will need real NMS/dedup across tile
   boundaries, not just "did it fire at all."
-- [ ] **T022** — Not started. Run Layer 1 inference across all imagery
-  tiles; project each detection's centroid onto the nearest river-line
-  point (canonical point rule, plan.md stage 3/7) rather than reporting
-  the raw centroid. **Blocked on a real open question, not yet
-  scoped**: constitution.md requires real PNOA (not Sentinel-2) for
-  Layer 1, and PNOA10 has zero Earth Engine coverage of this basin
-  (T015) — the 83 training/holdout crops were pulled individually via
-  IGN's WMS (`pull_pnoa_crops.py`, 300m boxes around known points), but
-  full-basin *coverage* (not just known points) at PNOA's 0.25-0.5m
-  resolution needs real tiling: the existing 5km Sentinel-2 grid would
-  be 10,000-20,000px/side per WMS request, far past any sane request
-  size (research-brief.md's 2026-09-12 scaling note). Needs a proper
-  tile-size decision and a cost/volume probe before committing to a
-  full pull.
+- [ ] **T022** — Not started at basin scale; a sub-area pilot run
+  2026-09-16 found a real, blocking quality problem first. Full-basin
+  *coverage* (not just the 83 training/holdout point-crops) at PNOA's
+  0.25-0.5m needs real tiling — the existing 5km Sentinel-2 grid would
+  be 10,000-20,000px/side per WMS request, and even scoped to the
+  EU-Hydro-only river corridor (11,997 km², vs 19,544 km² with Red
+  Hidrográfica) that's **115-187GB at native resolution** — too large
+  to pull blind. Per an explicit decision to de-risk before committing
+  that disk/time, piloted a small real sub-area first instead of
+  guessing at a resolution/scope tradeoff:
+
+  - `src/imagery/pull_pnoa_pilot_area.py`: tiled the real river corridor
+    (200m buffer) inside a 0.1°×0.1° cell around the basin's densest
+    known-dam cluster (36.85-36.95N, -3.95 to -3.85W — 111 real ground
+    truth points inside the actual tile coverage, 108 of them OSM
+    weirs), at native 0.5m/px, 500m/1000px tiles (a WMS-safe request
+    size, confirmed by probing one tile first). 255/259 tiles pulled
+    cleanly (0.28GB) — cheap enough to just run rather than estimate.
+  - `src/layers/run_layer1_pilot_inference.py`: ran the T021 model
+    across all 255 tiles, canonical-point-snapped, deduped within 50m,
+    matched against ground truth.
+
+  **Real, unflattering result: 94 detections, only 1 matched ground
+  truth within 30m, and distances to the nearest real structure were
+  large across the board (mean 948m, median 852m) — not a
+  near-miss/tolerance problem like Layer 3's, a genuine false-positive
+  problem.** Visually inspected the four highest-confidence detections
+  (0.67-0.70 conf): every one is a full-tile box over ordinary
+  forest/scrubland with no water or structure anywhere in frame.
+
+  **Root cause, not just a bad run**: T021's 28 training examples were
+  all *positive, object-centered* 300m point-crops — the model never
+  saw a single true-negative "no barrier here" example during training,
+  so on tightly-cropped holdout points (where a barrier is reliably
+  somewhere near center) it looks great (16/17 recall), but scanning
+  raw, mostly-empty terrain tiles gives it nothing to discriminate
+  against and it falls back to the same "box the whole frame" failure
+  mode found and partly filtered out of the *training* boxes (T019/T020)
+  — except now baked into the model itself, on tiles that were never
+  filtered because there's no ground truth to check them against ahead
+  of time.
+
+  **Not recommending the full 115-187GB pull on this model.** Real
+  fix needed first: add true-negative training examples (empty river-
+  corridor crops, no known structure nearby) so the model learns actual
+  discrimination, then re-pilot the same sub-area before reconsidering
+  full-basin scope. This is exactly what piloting first was for —
+  caught before burning the disk/time budget on a model not ready for
+  raw-tile scanning.
 
 ## 5. Layer 2 — DEM/hydrological — STOPPED 2026-09-14 (plan.md stage 4)
 
