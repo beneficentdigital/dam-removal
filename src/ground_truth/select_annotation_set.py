@@ -11,7 +11,7 @@ DEDUP_RADIUS_M = 50
 N_ANNOTATE_TOTAL = 100
 HOLDOUT_FRACTION = 0.2
 GRID_CELLS_PER_SIDE = 10  # for spatial stratification
-SOURCE_PRIORITY = {"SNCZI": 0, "ANDALUCIA_DERA": 1, "AMBER": 2, "OSM": 3}
+SOURCE_PRIORITY = {"SNCZI": 0, "DAM_OR_WEIR": 1, "ANDALUCIA_DERA": 2, "AMBER": 3, "OSM": 4}
 
 
 def dedupe(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:

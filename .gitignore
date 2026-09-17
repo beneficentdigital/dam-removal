@@ -17,6 +17,7 @@ layer3_ndwi_log.txt
 layer3_confirm_log.txt
 layer3_ndwi_mopup_log.txt
 layer3_dedup_log.txt
+layer4_full_log.txt
 cache/
 pull_dem_chunks_log.txt
 pull_dem_log.txt

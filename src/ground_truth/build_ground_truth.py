@@ -105,6 +105,33 @@ def load_andalucia():
     return pd.DataFrame(rows)
 
 
+def load_dam_or_weir():
+    """IGN's hy-p:DamOrWeir layer, same WFS as Red Hidrografica's
+    watercourses -- found 2026-09-14, pulled 2026-09-16
+    (pull_dam_or_weir.py already clips to the basin and writes GPKG)."""
+    boundary = gpd.read_file(BOUNDARY_PATH)
+    df = gpd.read_file("data/raw/dam_or_weir.gpkg")
+    clipped = gpd.clip(df, boundary)
+    print(f"DamOrWeir: pulled={len(df)}, spatial clip to Guadalquivir={len(clipped)}")
+    rows = []
+    for _, r in clipped.iterrows():
+        geom = r.geometry
+        pt = geom if geom.geom_type == "Point" else geom.centroid
+        rows.append(
+            {
+                "source": "DAM_OR_WEIR",
+                "source_id": r["gml_id"],
+                "lat": pt.y,
+                "lon": pt.x,
+                "barrier_type": "dam_or_weir",
+                "raw_attributes": json.dumps(
+                    {k: str(r[k]) for k in df.columns if k != "geometry"}, default=str
+                ),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
 def load_osm():
     with open("data/raw/osm_weirs_provisional.json") as f:
         records = json.load(f)
@@ -123,7 +150,8 @@ if __name__ == "__main__":
     amber = load_amber()
     andalucia = load_andalucia()
     osm = load_osm()
-    combined = pd.concat([snczi, amber, andalucia, osm], ignore_index=True)
+    dam_or_weir = load_dam_or_weir()
+    combined = pd.concat([snczi, amber, andalucia, osm, dam_or_weir], ignore_index=True)
     combined.to_csv("data/processed/ground_truth_guadalquivir.csv", index=False)
     print(f"\nTotal ground-truth records for Guadalquivir: {len(combined)}")
     print(combined["source"].value_counts())

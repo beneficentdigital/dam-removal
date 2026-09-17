@@ -1,0 +1,352 @@
+<title>Dam Candidate Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f6f1e6;
+    --paper-raised:#efe8d8;
+    --ink:#1c2b28;
+    --ink-soft:#4b5a55;
+    --line:rgba(28,43,40,.15);
+    --river:#1f6f6b;
+    --river-soft:#1f6f6b1a;
+    --terrain:#a86a2c;
+    --confirmed:#3d7a4f;
+    --confirmed-soft:#3d7a4f1a;
+    --uncertain:#b3791f;
+    --uncertain-soft:#b3791f1a;
+    --stopped:#a13d33;
+    --stopped-soft:#a13d331a;
+    --shadow: 0 1px 2px rgba(28,43,40,.06), 0 10px 26px rgba(28,43,40,.07);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#111c1a; --paper-raised:#16231f; --ink:#eef2ef; --ink-soft:#a9b8b2;
+      --line:rgba(238,242,239,.14); --river:#5cc2ba; --river-soft:#5cc2ba22;
+      --terrain:#d99a4e; --confirmed:#6fbf83; --confirmed-soft:#6fbf8322;
+      --uncertain:#e0a53d; --uncertain-soft:#e0a53d22; --stopped:#e0776a; --stopped-soft:#e0776a22;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px rgba(0,0,0,.4);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#111c1a; --paper-raised:#16231f; --ink:#eef2ef; --ink-soft:#a9b8b2;
+    --line:rgba(238,242,239,.14); --river:#5cc2ba; --river-soft:#5cc2ba22;
+    --terrain:#d99a4e; --confirmed:#6fbf83; --confirmed-soft:#6fbf8322;
+    --uncertain:#e0a53d; --uncertain-soft:#e0a53d22; --stopped:#e0776a; --stopped-soft:#e0776a22;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;}
+  body{
+    background:var(--paper); color:var(--ink);
+    font-family:'Work Sans',system-ui,-apple-system,sans-serif;
+    height:100vh; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .mono{font-family:'IBM Plex Mono',ui-monospace,monospace; font-variant-numeric:tabular-nums;}
+  h1{font-family:'Fraunces',Georgia,serif; font-weight:600; margin:0;}
+
+  /* ---- Top bar ---- */
+  header{
+    display:flex; align-items:center; gap:18px;
+    padding:14px 22px; border-bottom:2px solid var(--ink);
+    flex-wrap:wrap;
+  }
+  header h1{font-size:19px; white-space:nowrap;}
+  .progress-track{
+    flex:1; min-width:160px; height:8px; border-radius:4px;
+    background:var(--line); overflow:hidden; display:flex;
+  }
+  .progress-track div{height:100%;}
+  .progress-label{font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-soft); white-space:nowrap;}
+  .tallies{display:flex; gap:14px; font-family:'IBM Plex Mono',monospace; font-size:12px; white-space:nowrap;}
+  .tallies span{display:flex; align-items:center; gap:5px;}
+  .dot{width:8px; height:8px; border-radius:50%; display:inline-block;}
+  .filters{display:flex; gap:6px;}
+  .filter-btn{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; letter-spacing:.03em;
+    padding:5px 10px; border-radius:100px; border:1px solid var(--line);
+    background:none; color:var(--ink-soft); cursor:pointer;
+  }
+  .filter-btn.active{background:var(--river); border-color:var(--river); color:var(--paper);}
+
+  /* ---- Main stage ---- */
+  main{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    gap:40px; padding:20px; min-height:0;
+  }
+  .stage{display:flex; gap:36px; align-items:center; max-width:920px; width:100%;}
+  .imgwrap{
+    flex:none; width:min(46vh,420px); height:min(46vh,420px);
+    border-radius:14px; overflow:hidden; border:1px solid var(--line);
+    box-shadow:var(--shadow); background:var(--paper-raised);
+    position:relative;
+  }
+  .imgwrap img{width:100%; height:100%; object-fit:cover; display:block;}
+  .imgwrap .navhint{
+    position:absolute; bottom:10px; left:10px; right:10px;
+    display:flex; justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace; font-size:11px;
+    color:#fff; text-shadow:0 1px 3px rgba(0,0,0,.6);
+    opacity:.85; pointer-events:none;
+  }
+  .details{flex:1; min-width:0;}
+  .chip{
+    font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.05em;
+    text-transform:uppercase; padding:3px 9px; border-radius:100px; display:inline-block;
+  }
+  .chip.confirmed{background:var(--confirmed-soft); color:var(--confirmed);}
+  .chip.uncertain{background:var(--uncertain-soft); color:var(--uncertain);}
+  .details .metarow{
+    display:flex; gap:16px; margin:12px 0 20px;
+    font-family:'IBM Plex Mono',monospace; font-size:13px; color:var(--ink-soft);
+  }
+  .details .metarow b{color:var(--ink); font-weight:500;}
+  .details .candid{font-size:22px; margin-bottom:2px;}
+  .actions{display:flex; flex-direction:column; gap:10px;}
+  .actbtn{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 18px; border-radius:10px; border:1.5px solid var(--line);
+    background:var(--paper-raised); cursor:pointer; font-family:'Work Sans',sans-serif;
+    font-size:15px; font-weight:500; color:var(--ink); transition:transform .06s;
+  }
+  .actbtn:active{transform:scale(.98);}
+  .actbtn .key{
+    font-family:'IBM Plex Mono',monospace; font-size:11.5px; color:var(--ink-soft);
+    border:1px solid var(--line); border-radius:5px; padding:2px 7px;
+  }
+  .actbtn.yes{border-color:var(--confirmed);}
+  .actbtn.yes:hover{background:var(--confirmed-soft);}
+  .actbtn.no{border-color:var(--stopped);}
+  .actbtn.no:hover{background:var(--stopped-soft);}
+  .actbtn.unsure{border-color:var(--uncertain);}
+  .actbtn.unsure:hover{background:var(--uncertain-soft);}
+  .actbtn.current-label{outline:2px solid currentColor; outline-offset:1px;}
+
+  .jumpnav{display:flex; gap:8px; margin-top:22px;}
+  .navbtn{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; padding:7px 12px;
+    border-radius:8px; border:1px solid var(--line); background:none; color:var(--ink-soft); cursor:pointer;
+  }
+  .navbtn:hover{color:var(--ink); border-color:var(--ink-soft);}
+
+  .done-screen{
+    display:flex; flex-direction:column; align-items:center; gap:10px; text-align:center;
+  }
+  .done-screen h2{font-family:'Fraunces',serif; font-size:26px; margin:0;}
+  .done-screen p{color:var(--ink-soft); max-width:44ch;}
+
+  footer{
+    padding:8px 22px; border-top:1px solid var(--line);
+    font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--ink-soft);
+    display:flex; justify-content:space-between;
+  }
+
+  @media (max-width:720px){
+    .stage{flex-direction:column;}
+    .imgwrap{width:min(60vw,320px); height:min(60vw,320px);}
+  }
+</style>
+
+<header>
+  <h1>Dam Candidate Review</h1>
+  <div class="progress-track" id="progressTrack"></div>
+  <div class="progress-label" id="progressLabel">0 / 0</div>
+  <div class="tallies">
+    <span><span class="dot" style="background:var(--confirmed)"></span><span id="tallyYes">0</span></span>
+    <span><span class="dot" style="background:var(--stopped)"></span><span id="tallyNo">0</span></span>
+    <span><span class="dot" style="background:var(--uncertain)"></span><span id="tallyUnsure">0</span></span>
+  </div>
+  <div class="filters" id="filters">
+    <button class="filter-btn active" data-f="unreviewed">Unreviewed</button>
+    <button class="filter-btn" data-f="new-confirmed">Confirmed</button>
+    <button class="filter-btn" data-f="new-uncertain">Uncertain</button>
+    <button class="filter-btn" data-f="all">All</button>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<footer>
+  <span>Guadalquivir Basin Pilot — candidate confirmation, PNOA 0.5m imagery</span>
+  <span id="idLabel" class="mono"></span>
+</footer>
+
+<script>
+const CANDIDATES = [{"candidate_id": "c0000", "lat": 36.76103877834605, "lon": -6.402414651927823, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0008", "lat": 36.78654778259674, "lon": -6.37288688480838, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0009", "lat": 36.8556947331538, "lon": -6.352338550351093, "match_status": "new-confirmed", "confidence": 0.8682}, {"candidate_id": "c0010", "lat": 37.92726439141968, "lon": -6.471008268092879, "match_status": "new-confirmed", "confidence": 0.8936}, {"candidate_id": "c0011", "lat": 36.8286475277624, "lon": -6.3526387923584, "match_status": "new-confirmed", "confidence": 0.999}, {"candidate_id": "c0012", "lat": 37.93035615639442, "lon": -6.448597135956581, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0013", "lat": 37.91525934072536, "lon": -6.462446684413505, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0014", "lat": 37.91146517215951, "lon": -6.452542011345883, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0015", "lat": 38.10754857854294, "lon": -4.948109231722686, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0016", "lat": 36.91098922971044, "lon": -6.208946081961383, "match_status": "new-confirmed", "confidence": 0.9133}, {"candidate_id": "c0017", "lat": 37.78365554461261, "lon": -5.685399835524086, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0020", "lat": 38.06142704844154, "lon": -4.68230187349191, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0021", "lat": 37.73643504015436, "lon": -5.875621952525476, "match_status": "new-confirmed", "confidence": 0.8776}, {"candidate_id": "c0024", "lat": 36.903515892815776, "lon": -6.268840881296421, "match_status": "new-confirmed", "confidence": 0.8749}, {"candidate_id": "c0025", "lat": 38.0013302975639, "lon": -5.961085389408352, "match_status": "new-confirmed", "confidence": 0.8555}, {"candidate_id": "c0026", "lat": 37.768529465537526, "lon": -5.456218689760226, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0027", "lat": 37.04677287080265, "lon": -5.723805510742935, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0030", "lat": 36.80790370816999, "lon": -6.342042398798846, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0031", "lat": 37.09402083580268, "lon": -6.086540051481296, "match_status": "new-confirmed", "confidence": 0.8611}, {"candidate_id": "c0034", "lat": 37.002740468259155, "lon": -6.164897152557304, "match_status": "new-confirmed", "confidence": 0.871}, {"candidate_id": "c0035", "lat": 36.95915171293929, "lon": -6.180408447468771, "match_status": "new-confirmed", "confidence": 0.9229}, {"candidate_id": "c0039", "lat": 37.13859874746556, "lon": -6.096155356969864, "match_status": "new-confirmed", "confidence": 0.8571}, {"candidate_id": "c0041", "lat": 36.873888607178, "lon": -6.348239955680541, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0045", "lat": 37.3284249557461, "lon": -5.993959346603243, "match_status": "new-confirmed", "confidence": 0.8929}, {"candidate_id": "c0047", "lat": 37.59706181869336, "lon": -5.54791096555044, "match_status": "new-confirmed", "confidence": 0.8912}, {"candidate_id": "c0052", "lat": 37.81259235903649, "lon": -5.92119677350983, "match_status": "new-confirmed", "confidence": 0.9167}, {"candidate_id": "c0053", "lat": 38.09321690520714, "lon": -4.917018737563445, "match_status": "new-confirmed", "confidence": 0.9495}, {"candidate_id": "c0055", "lat": 38.07058061943459, "lon": -4.7051081952135725, "match_status": "new-confirmed", "confidence": 0.9744}, {"candidate_id": "c0056", "lat": 38.260311648392694, "lon": -5.230847733942917, "match_status": "new-confirmed", "confidence": 0.9167}, {"candidate_id": "c0059", "lat": 37.02841454852911, "lon": -6.141273111685869, "match_status": "new-confirmed", "confidence": 0.9984}, {"candidate_id": "c0060", "lat": 37.98508340240744, "lon": -5.936472428553813, "match_status": "new-confirmed", "confidence": 0.8673}, {"candidate_id": "c0065", "lat": 37.852004147555625, "lon": -5.379622190083568, "match_status": "new-confirmed", "confidence": 0.9892}, {"candidate_id": "c0077", "lat": 36.93934928294612, "lon": -6.188819104178835, "match_status": "new-confirmed", "confidence": 0.9014}, {"candidate_id": "c0081", "lat": 37.79993372429235, "lon": -5.7092374699793895, "match_status": "new-confirmed", "confidence": 0.9331}, {"candidate_id": "c0106", "lat": 36.79580336438736, "lon": -6.346787994418184, "match_status": "new-confirmed", "confidence": 0.8793}, {"candidate_id": "c0401", "lat": 37.20253284688709, "lon": -6.180816540906837, "match_status": "new-confirmed", "confidence": 0.9828}, {"candidate_id": "c0550", "lat": 37.28242669769673, "lon": -4.36037208640297, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0552", "lat": 38.095450799249825, "lon": -3.4813379661844945, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0553", "lat": 38.257774231735375, "lon": -3.9324852772716334, "match_status": "new-confirmed", "confidence": 0.9203}, {"candidate_id": "c0556", "lat": 38.07993543490661, "lon": -4.230542823579445, "match_status": "new-confirmed", "confidence": 0.8868}, {"candidate_id": "c0559", "lat": 36.98670832940127, "lon": -3.887263694950875, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0560", "lat": 37.24898676532407, "lon": -4.300921621737994, "match_status": "new-confirmed", "confidence": 0.9042}, {"candidate_id": "c0561", "lat": 37.275547297939525, "lon": -3.6723252789450234, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0566", "lat": 37.28193319896231, "lon": -4.337817463411349, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0567", "lat": 38.12302378731994, "lon": -3.4353686149522034, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0569", "lat": 38.068468256750506, "lon": -4.246193663089435, "match_status": "new-confirmed", "confidence": 0.9833}, {"candidate_id": "c0578", "lat": 37.19462277599758, "lon": -3.117396683429387, "match_status": "new-confirmed", "confidence": 0.9566}, {"candidate_id": "c0585", "lat": 37.62936946967944, "lon": -3.72689989071885, "match_status": "new-confirmed", "confidence": 0.865}, {"candidate_id": "c0595", "lat": 38.19535468329323, "lon": -3.786823533596071, "match_status": "new-confirmed", "confidence": 0.863}, {"candidate_id": "c0675", "lat": 37.56897225269091, "lon": -2.898546747120154, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0676", "lat": 37.56671609015579, "lon": -2.9357711600244536, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0678", "lat": 37.561909784006275, "lon": -2.946414754816029, "match_status": "new-confirmed", "confidence": 0.9102}, {"candidate_id": "c0688", "lat": 38.127241608499105, "lon": -2.7787428802382856, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0689", "lat": 38.39647218104772, "lon": -2.9036065281615286, "match_status": "new-confirmed", "confidence": 0.9102}, {"candidate_id": "c0695", "lat": 38.19560303023514, "lon": -2.7464832394793373, "match_status": "new-confirmed", "confidence": 0.9024}, {"candidate_id": "c0715", "lat": 37.77778314973215, "lon": -2.89855938690597, "match_status": "new-confirmed", "confidence": 0.8727}, {"candidate_id": "c0725", "lat": 38.40500548102843, "lon": -2.602018229312042, "match_status": "new-confirmed", "confidence": 0.9911}, {"candidate_id": "c0726", "lat": 37.8674156428963, "lon": -2.647378209871059, "match_status": "new-confirmed", "confidence": 0.8525}, {"candidate_id": "c0732", "lat": 38.188955154957426, "lon": -2.7532087373399796, "match_status": "new-confirmed", "confidence": 0.9823}, {"candidate_id": "c0748", "lat": 37.79437279093588, "lon": -5.713076208995679, "match_status": "new-confirmed", "confidence": 0.8622}, {"candidate_id": "c0765", "lat": 37.583665088999815, "lon": -2.8513485011390465, "match_status": "new-confirmed", "confidence": 1.0}, {"candidate_id": "c0782", "lat": 38.08730139941998, "lon": -3.5036196041853422, "match_status": "new-confirmed", "confidence": 0.9839}, {"candidate_id": "c0658", "lat": 38.10881269892498, "lon": -3.833432548493352, "match_status": "new-uncertain", "confidence": 0.0512}, {"candidate_id": "c0093", "lat": 38.01110599770085, "lon": -5.944702010423122, "match_status": "new-uncertain", "confidence": 0.2863}, {"candidate_id": "c0156", "lat": 38.1547848586899, "lon": -5.7226905718420635, "match_status": "new-uncertain", "confidence": 0.2676}, {"candidate_id": "c0571", "lat": 38.22671145770011, "lon": -3.9677724898260305, "match_status": "new-uncertain", "confidence": 0.6121}, {"candidate_id": "c0096", "lat": 37.52268880249942, "lon": -5.922061778241723, "match_status": "new-uncertain", "confidence": 0.4212}, {"candidate_id": "c0358", "lat": 36.95059670702372, "lon": -5.75083812380152, "match_status": "new-uncertain", "confidence": 0.0426}, {"candidate_id": "c0731", "lat": 38.46646645819507, "lon": -2.698783286333408, "match_status": "new-uncertain", "confidence": 0.0178}, {"candidate_id": "c0162", "lat": 37.97726256068859, "lon": -6.198264353784873, "match_status": "new-uncertain", "confidence": 0.4269}, {"candidate_id": "c0313", "lat": 37.26036258736568, "lon": -6.141588418147643, "match_status": "new-uncertain", "confidence": 0.0986}, {"candidate_id": "c0620", "lat": 37.28647746028017, "lon": -4.330844028009057, "match_status": "new-uncertain", "confidence": 0.3995}, {"candidate_id": "c0577", "lat": 38.563807646327696, "lon": -4.170324366668979, "match_status": "new-uncertain", "confidence": 0.2387}, {"candidate_id": "c0730", "lat": 38.3395081488208, "lon": -2.8871263474352156, "match_status": "new-uncertain", "confidence": 0.0434}, {"candidate_id": "c0690", "lat": 38.17051706955151, "lon": -2.7796943176960647, "match_status": "new-uncertain", "confidence": 0.5761}, {"candidate_id": "c0593", "lat": 38.099790092386904, "lon": -4.330631641888206, "match_status": "new-uncertain", "confidence": 0.5557}, {"candidate_id": "c0677", "lat": 37.566361609818166, "lon": -2.915858320879, "match_status": "new-uncertain", "confidence": 0.6026}, {"candidate_id": "c0253", "lat": 37.604906206352425, "lon": -6.094245501865288, "match_status": "new-uncertain", "confidence": 0.123}, {"candidate_id": "c0555", "lat": 37.63219066119743, "lon": -4.215390173687382, "match_status": "new-uncertain", "confidence": 0.1065}, {"candidate_id": "c0718", "lat": 38.445087633069306, "lon": -2.885547977554957, "match_status": "new-uncertain", "confidence": 0.3043}, {"candidate_id": "c0216", "lat": 37.43934188522436, "lon": -5.064624243659288, "match_status": "new-uncertain", "confidence": 0.1882}, {"candidate_id": "c0752", "lat": 38.61159671496905, "lon": -3.678161213907889, "match_status": "new-uncertain", "confidence": 0.3379}, {"candidate_id": "c0774", "lat": 37.85897755769616, "lon": -3.655653135058206, "match_status": "new-uncertain", "confidence": 0.0815}, {"candidate_id": "c0607", "lat": 37.09487345922489, "lon": -3.933120337123961, "match_status": "new-uncertain", "confidence": 0.3833}, {"candidate_id": "c0146", "lat": 37.76981165298055, "lon": -5.309092648683821, "match_status": "new-uncertain", "confidence": 0.2245}, {"candidate_id": "c0158", "lat": 37.377976045237055, "lon": -5.994757283417422, "match_status": "new-uncertain", "confidence": 0.2647}, {"candidate_id": "c0406", "lat": 38.251128312017265, "lon": -6.092766955950116, "match_status": "new-uncertain", "confidence": 0.0626}, {"candidate_id": "c0719", "lat": 37.96363489630372, "lon": -2.816552984785693, "match_status": "new-uncertain", "confidence": 0.091}, {"candidate_id": "c0648", "lat": 38.32118319039513, "lon": -3.857328565158502, "match_status": "new-uncertain", "confidence": 0.0637}, {"candidate_id": "c0627", "lat": 38.5377123887304, "lon": -4.133130923917987, "match_status": "new-uncertain", "confidence": 0.4692}, {"candidate_id": "c0402", "lat": 36.930517973413, "lon": -5.877073340870667, "match_status": "new-uncertain", "confidence": 0.0992}, {"candidate_id": "c0570", "lat": 37.154456593938264, "lon": -3.4620478454739563, "match_status": "new-uncertain", "confidence": 0.6936}, {"candidate_id": "c0292", "lat": 37.59459138169546, "lon": -5.476674576600529, "match_status": "new-uncertain", "confidence": 0.1134}, {"candidate_id": "c0665", "lat": 38.21697349590489, "lon": -3.419826712755867, "match_status": "new-uncertain", "confidence": 0.025}, {"candidate_id": "c0694", "lat": 37.795143634815034, "lon": -2.9023965674272585, "match_status": "new-uncertain", "confidence": 0.4051}, {"candidate_id": "c0395", "lat": 37.27568910606875, "lon": -5.3177598330928095, "match_status": "new-uncertain", "confidence": 0.0302}, {"candidate_id": "c0753", "lat": 38.505500273401594, "lon": -3.677245492850292, "match_status": "new-uncertain", "confidence": 0.1672}, {"candidate_id": "c0108", "lat": 37.418990453395594, "lon": -5.988669586761566, "match_status": "new-uncertain", "confidence": 0.2691}, {"candidate_id": "c0181", "lat": 37.67810272327682, "lon": -5.914467270994042, "match_status": "new-uncertain", "confidence": 0.2715}, {"candidate_id": "c0645", "lat": 37.27513988430199, "lon": -4.387696793568767, "match_status": "new-uncertain", "confidence": 0.1321}, {"candidate_id": "c0365", "lat": 37.78310294906474, "lon": -5.925643542492402, "match_status": "new-uncertain", "confidence": 0.119}, {"candidate_id": "c0042", "lat": 37.549167828969885, "lon": -5.898662947137869, "match_status": "new-uncertain", "confidence": 0.4167}, {"candidate_id": "c0284", "lat": 37.58650980538003, "lon": -5.183366795659818, "match_status": "new-uncertain", "confidence": 0.0929}, {"candidate_id": "c0609", "lat": 38.23511800000002, "lon": -3.9385050000000006, "match_status": "new-uncertain", "confidence": 0.6173}, {"candidate_id": "c0417", "lat": 37.19950506601997, "lon": -6.18113231042178, "match_status": "new-uncertain", "confidence": 0.6002}, {"candidate_id": "c0300", "lat": 38.08589992116145, "lon": -4.666665544551031, "match_status": "new-uncertain", "confidence": 0.204}, {"candidate_id": "c0075", "lat": 38.04492488671432, "lon": -4.670857563218949, "match_status": "new-uncertain", "confidence": 0.8243}, {"candidate_id": "c0699", "lat": 38.47416737931687, "lon": -2.6863475640281647, "match_status": "new-uncertain", "confidence": 0.0654}, {"candidate_id": "c0483", "lat": 38.085989125361635, "lon": -4.670179210161974, "match_status": "new-uncertain", "confidence": 0.1934}, {"candidate_id": "c0489", "lat": 37.96734178175895, "lon": -5.245640583732082, "match_status": "new-uncertain", "confidence": 0.1695}, {"candidate_id": "c0680", "lat": 38.044697138661576, "lon": -2.949894497506699, "match_status": "new-uncertain", "confidence": 0.6704}, {"candidate_id": "c0591", "lat": 38.23123777154085, "lon": -3.952440599615918, "match_status": "new-uncertain", "confidence": 0.5424}, {"candidate_id": "c0382", "lat": 37.98148884735139, "lon": -5.2979924763169555, "match_status": "new-uncertain", "confidence": 0.4688}, {"candidate_id": "c0189", "lat": 37.93982531955597, "lon": -5.781405450896977, "match_status": "new-uncertain", "confidence": 0.2874}, {"candidate_id": "c0650", "lat": 38.091055724018986, "lon": -4.244407225500078, "match_status": "new-uncertain", "confidence": 0.1783}, {"candidate_id": "c0415", "lat": 37.97876569549529, "lon": -5.297438570373964, "match_status": "new-uncertain", "confidence": 0.7251}, {"candidate_id": "c0434", "lat": 37.72797272365982, "lon": -5.516687786899796, "match_status": "new-uncertain", "confidence": 0.1298}, {"candidate_id": "c0540", "lat": 37.45723794225184, "lon": -4.807401579935499, "match_status": "new-uncertain", "confidence": 0.0541}, {"candidate_id": "c0160", "lat": 37.675183945342035, "lon": -6.041889003623884, "match_status": "new-uncertain", "confidence": 0.2447}, {"candidate_id": "c0586", "lat": 38.20315713654467, "lon": -3.781684106444276, "match_status": "new-uncertain", "confidence": 0.4908}, {"candidate_id": "c0325", "lat": 37.49342534477954, "lon": -5.447563407638279, "match_status": "new-uncertain", "confidence": 0.089}, {"candidate_id": "c0204", "lat": 38.10004762530112, "lon": -4.923434920921022, "match_status": "new-uncertain", "confidence": 0.4994}, {"candidate_id": "c0477", "lat": 37.45090541513894, "lon": -4.814443212537422, "match_status": "new-uncertain", "confidence": 0.0624}, {"candidate_id": "c0166", "lat": 37.6207773214816, "lon": -5.7636844842160775, "match_status": "new-uncertain", "confidence": 0.3912}, {"candidate_id": "c0168", "lat": 37.76171677996804, "lon": -5.4847808039713435, "match_status": "new-uncertain", "confidence": 0.4473}, {"candidate_id": "c0152", "lat": 37.64212108729425, "lon": -6.103955084947072, "match_status": "new-uncertain", "confidence": 0.4884}, {"candidate_id": "c0085", "lat": 37.49528523375779, "lon": -5.9979314727529776, "match_status": "new-uncertain", "confidence": 0.2795}, {"candidate_id": "c0486", "lat": 37.60029339119161, "lon": -5.39225496837267, "match_status": "new-uncertain", "confidence": 0.1321}, {"candidate_id": "c0135", "lat": 37.64102062921529, "lon": -6.100498384615134, "match_status": "new-uncertain", "confidence": 0.5652}, {"candidate_id": "c0297", "lat": 37.72085390403557, "lon": -4.944847531772187, "match_status": "new-uncertain", "confidence": 0.1214}, {"candidate_id": "c0636", "lat": 36.98471306958787, "lon": -3.984459263936039, "match_status": "new-uncertain", "confidence": 0.1249}, {"candidate_id": "c0517", "lat": 37.5930629413167, "lon": -5.789997854603752, "match_status": "new-uncertain", "confidence": 0.237}, {"candidate_id": "c0672", "lat": 38.262957664678616, "lon": -3.918914117175134, "match_status": "new-uncertain", "confidence": 0.1808}, {"candidate_id": "c0257", "lat": 37.65178320392892, "lon": -5.37733116061535, "match_status": "new-uncertain", "confidence": 0.1077}, {"candidate_id": "c0470", "lat": 38.16068581081037, "lon": -5.034941771161981, "match_status": "new-uncertain", "confidence": 0.1848}, {"candidate_id": "c0544", "lat": 37.43074849822048, "lon": -4.7903027629981345, "match_status": "new-uncertain", "confidence": 0.0726}, {"candidate_id": "c0583", "lat": 38.20083246192219, "lon": -3.993974385914147, "match_status": "new-uncertain", "confidence": 0.1551}, {"candidate_id": "c0447", "lat": 37.637484692089984, "lon": -6.060099791234189, "match_status": "new-uncertain", "confidence": 0.0822}, {"candidate_id": "c0150", "lat": 37.59280190694883, "lon": -5.814344067336453, "match_status": "new-uncertain", "confidence": 0.3934}, {"candidate_id": "c0600", "lat": 38.09470060725699, "lon": -4.337977146069065, "match_status": "new-uncertain", "confidence": 0.6568}, {"candidate_id": "c0490", "lat": 37.36864918964619, "lon": -4.743548596905344, "match_status": "new-uncertain", "confidence": 0.0547}, {"candidate_id": "c0134", "lat": 38.23460301648336, "lon": -5.1038150367736455, "match_status": "new-uncertain", "confidence": 0.5517}, {"candidate_id": "c0102", "lat": 37.51303560822771, "lon": -5.977354486821877, "match_status": "new-uncertain", "confidence": 0.4086}, {"candidate_id": "c0163", "lat": 37.18080630482592, "lon": -6.088961835331063, "match_status": "new-uncertain", "confidence": 0.273}, {"candidate_id": "c0338", "lat": 37.46755322025382, "lon": -5.834317138757995, "match_status": "new-uncertain", "confidence": 0.0714}, {"candidate_id": "c0601", "lat": 38.65895005321351, "lon": -4.181920659364481, "match_status": "new-uncertain", "confidence": 0.7037}, {"candidate_id": "c0463", "lat": 38.28025457820377, "lon": -5.283408549316775, "match_status": "new-uncertain", "confidence": 0.5204}, {"candidate_id": "c0538", "lat": 37.96788376981962, "lon": -4.8389390695284815, "match_status": "new-uncertain", "confidence": 0.1051}, {"candidate_id": "c0180", "lat": 37.3697160467872, "lon": -6.022647592571955, "match_status": "new-uncertain", "confidence": 0.3477}, {"candidate_id": "c0647", "lat": 37.62976603384051, "lon": -3.826342177576719, "match_status": "new-uncertain", "confidence": 0.0453}, {"candidate_id": "c0668", "lat": 38.223695755676786, "lon": -4.299028490528045, "match_status": "new-uncertain", "confidence": 0.2826}, {"candidate_id": "c0408", "lat": 37.428099203349134, "lon": -4.7863253157631895, "match_status": "new-uncertain", "confidence": 0.0738}, {"candidate_id": "c0425", "lat": 38.309775747838074, "lon": -5.204681784778447, "match_status": "new-uncertain", "confidence": 0.0306}, {"candidate_id": "c0659", "lat": 38.21891505570721, "lon": -3.779890237443401, "match_status": "new-uncertain", "confidence": 0.1028}, {"candidate_id": "c0384", "lat": 37.487058, "lon": -5.42118, "match_status": "new-uncertain", "confidence": 0.0295}, {"candidate_id": "c0240", "lat": 37.608330084470914, "lon": -5.403599159148489, "match_status": "new-uncertain", "confidence": 0.1536}, {"candidate_id": "c0635", "lat": 38.52580805984706, "lon": -4.0999076036118245, "match_status": "new-uncertain", "confidence": 0.3319}, {"candidate_id": "c0572", "lat": 37.63558391760736, "lon": -3.993963528085191, "match_status": "new-uncertain", "confidence": 0.8311}, {"candidate_id": "c0205", "lat": 37.66255993857837, "lon": -5.8326927333365015, "match_status": "new-uncertain", "confidence": 0.1967}, {"candidate_id": "c0094", "lat": 37.752220759027274, "lon": -5.485617332451612, "match_status": "new-uncertain", "confidence": 0.7336}, {"candidate_id": "c0554", "lat": 38.113569834959534, "lon": -3.4552150529920196, "match_status": "new-uncertain", "confidence": 0.6032}, {"candidate_id": "c0220", "lat": 37.61395485194569, "lon": -5.259662473046929, "match_status": "new-uncertain", "confidence": 0.4093}, {"candidate_id": "c0157", "lat": 37.58203003228595, "lon": -5.358742249203105, "match_status": "new-uncertain", "confidence": 0.3968}, {"candidate_id": "c0458", "lat": 38.18285073778499, "lon": -5.053735321594923, "match_status": "new-uncertain", "confidence": 0.065}, {"candidate_id": "c0184", "lat": 37.65759516614096, "lon": -5.3089699037952025, "match_status": "new-uncertain", "confidence": 0.398}, {"candidate_id": "c0048", "lat": 37.51490685360558, "lon": -5.95033862323689, "match_status": "new-uncertain", "confidence": 0.4694}, {"candidate_id": "c0763", "lat": 38.60957718993337, "lon": -3.6778875141535345, "match_status": "new-uncertain", "confidence": 0.3409}, {"candidate_id": "c0640", "lat": 37.160488016065926, "lon": -3.489014427888842, "match_status": "new-uncertain", "confidence": 0.0627}, {"candidate_id": "c0370", "lat": 37.67228636671554, "lon": -5.114309583077135, "match_status": "new-uncertain", "confidence": 0.3264}, {"candidate_id": "c0111", "lat": 37.62151305560399, "lon": -6.051876490381098, "match_status": "new-uncertain", "confidence": 0.2464}, {"candidate_id": "c0582", "lat": 38.21487548284328, "lon": -3.4451425894347167, "match_status": "new-uncertain", "confidence": 0.3837}, {"candidate_id": "c0784", "lat": 38.24018440848728, "lon": -3.5510387126168275, "match_status": "new-uncertain", "confidence": 0.4419}, {"candidate_id": "c0707", "lat": 38.49429588963859, "lon": -2.8165456337089103, "match_status": "new-uncertain", "confidence": 0.0476}, {"candidate_id": "c0343", "lat": 38.275214099475015, "lon": -6.105246276129864, "match_status": "new-uncertain", "confidence": 0.1094}, {"candidate_id": "c0276", "lat": 37.468104917336, "lon": -5.817076801384565, "match_status": "new-uncertain", "confidence": 0.0908}, {"candidate_id": "c0643", "lat": 37.538123624880654, "lon": -3.3454495213210196, "match_status": "new-uncertain", "confidence": 0.047}, {"candidate_id": "c0126", "lat": 37.80558525194916, "lon": -6.138179693750957, "match_status": "new-uncertain", "confidence": 0.1791}, {"candidate_id": "c0750", "lat": 38.60841409974248, "lon": -3.676241623665833, "match_status": "new-uncertain", "confidence": 0.4309}, {"candidate_id": "c0573", "lat": 38.20108208219274, "lon": -3.463119477534239, "match_status": "new-uncertain", "confidence": 0.5758}, {"candidate_id": "c0399", "lat": 37.41494632299043, "lon": -5.916726530807616, "match_status": "new-uncertain", "confidence": 0.0624}, {"candidate_id": "c0119", "lat": 37.11306117261403, "lon": -6.03319525836271, "match_status": "new-uncertain", "confidence": 0.4446}, {"candidate_id": "c0282", "lat": 37.9803373898341, "lon": -5.294592344480116, "match_status": "new-uncertain", "confidence": 0.5215}, {"candidate_id": "c0438", "lat": 37.95670955274122, "lon": -5.240335556764479, "match_status": "new-uncertain", "confidence": 0.3141}, {"candidate_id": "c0194", "lat": 37.82247987311516, "lon": -5.918840272655264, "match_status": "new-uncertain", "confidence": 0.2347}, {"candidate_id": "c0267", "lat": 38.29603706087634, "lon": -5.1474899767535955, "match_status": "new-uncertain", "confidence": 0.233}, {"candidate_id": "c0624", "lat": 38.103295697954714, "lon": -3.830796604350104, "match_status": "new-uncertain", "confidence": 0.1565}, {"candidate_id": "c0716", "lat": 38.383456516673185, "lon": -2.8827725587725306, "match_status": "new-uncertain", "confidence": 0.7264}, {"candidate_id": "c0161", "lat": 37.74141749415814, "lon": -6.075886817125739, "match_status": "new-uncertain", "confidence": 0.3594}, {"candidate_id": "c0201", "lat": 37.5608030973496, "lon": -5.694449643179876, "match_status": "new-uncertain", "confidence": 0.2262}, {"candidate_id": "c0652", "lat": 38.56286932077748, "lon": -4.190742510764301, "match_status": "new-uncertain", "confidence": 0.1457}, {"candidate_id": "c0511", "lat": 37.43208666190386, "lon": -4.79179481787734, "match_status": "new-uncertain", "confidence": 0.0833}, {"candidate_id": "c0773", "lat": 38.238451701206834, "lon": -3.556770176791634, "match_status": "new-uncertain", "confidence": 0.605}, {"candidate_id": "c0454", "lat": 37.538447163206655, "lon": -5.440964752611253, "match_status": "new-uncertain", "confidence": 0.1474}, {"candidate_id": "c0172", "lat": 37.42507487272272, "lon": -5.9929244296046225, "match_status": "new-uncertain", "confidence": 0.3781}, {"candidate_id": "c0188", "lat": 37.61715924769913, "lon": -5.4280600440075935, "match_status": "new-uncertain", "confidence": 0.2585}, {"candidate_id": "c0270", "lat": 37.48295740275287, "lon": -5.498747139316101, "match_status": "new-uncertain", "confidence": 0.0981}, {"candidate_id": "c0070", "lat": 37.80354090665057, "lon": -5.909247578994895, "match_status": "new-uncertain", "confidence": 0.7398}, {"candidate_id": "c0788", "lat": 38.5253087461172, "lon": -3.613349849853445, "match_status": "new-uncertain", "confidence": 0.0577}, {"candidate_id": "c0091", "lat": 37.48298786118632, "lon": -4.690486742829109, "match_status": "new-uncertain", "confidence": 0.6463}, {"candidate_id": "c0187", "lat": 38.130886191970234, "lon": -4.962212004453807, "match_status": "new-uncertain", "confidence": 0.2925}, {"candidate_id": "c0074", "lat": 37.97478176570375, "lon": -5.92062539428645, "match_status": "new-uncertain", "confidence": 0.7715}, {"candidate_id": "c0768", "lat": 38.53267334589396, "lon": -3.6161517807663146, "match_status": "new-uncertain", "confidence": 0.3896}, {"candidate_id": "c0480", "lat": 37.97671696194384, "lon": -5.2953934728004155, "match_status": "new-uncertain", "confidence": 0.7689}, {"candidate_id": "c0273", "lat": 37.858048429135856, "lon": -5.354948369642252, "match_status": "new-uncertain", "confidence": 0.3078}, {"candidate_id": "c0448", "lat": 37.98434221123043, "lon": -5.037535128955294, "match_status": "new-uncertain", "confidence": 0.0714}, {"candidate_id": "c0409", "lat": 37.79757403002438, "lon": -5.287686024302449, "match_status": "new-uncertain", "confidence": 0.1355}, {"candidate_id": "c0698", "lat": 38.1019659387025, "lon": -2.774058003811248, "match_status": "new-uncertain", "confidence": 0.1178}, {"candidate_id": "c0251", "lat": 37.55889904950975, "lon": -5.349897171249281, "match_status": "new-uncertain", "confidence": 0.127}, {"candidate_id": "c0178", "lat": 37.63625893007843, "lon": -5.313090698702025, "match_status": "new-uncertain", "confidence": 0.326}, {"candidate_id": "c0233", "lat": 37.60151863093738, "lon": -5.395261588578244, "match_status": "new-uncertain", "confidence": 0.246}, {"candidate_id": "c0655", "lat": 38.212907109629214, "lon": -3.782253829917115, "match_status": "new-uncertain", "confidence": 0.2951}, {"candidate_id": "c0071", "lat": 37.75857404975223, "lon": -5.8759635903143765, "match_status": "new-uncertain", "confidence": 0.7715}, {"candidate_id": "c0186", "lat": 37.626973828601415, "lon": -5.435786145730262, "match_status": "new-uncertain", "confidence": 0.2568}, {"candidate_id": "c0232", "lat": 37.64010782556328, "lon": -5.400775495478079, "match_status": "new-uncertain", "confidence": 0.1593}, {"candidate_id": "c0196", "lat": 37.86765286634396, "lon": -4.7848298809043115, "match_status": "new-uncertain", "confidence": 0.2224}, {"candidate_id": "c0444", "lat": 37.67827814260898, "lon": -5.573846713120508, "match_status": "new-uncertain", "confidence": 0.0731}, {"candidate_id": "c0443", "lat": 38.07058605542659, "lon": -5.574055855744563, "match_status": "new-uncertain", "confidence": 0.0414}, {"candidate_id": "c0654", "lat": 37.6007685459726, "lon": -4.43195992256962, "match_status": "new-uncertain", "confidence": 0.025}, {"candidate_id": "c0413", "lat": 37.52710663430388, "lon": -5.52058897185106, "match_status": "new-uncertain", "confidence": 0.0329}, {"candidate_id": "c0088", "lat": 37.12568212019061, "lon": -5.239682709331371, "match_status": "new-uncertain", "confidence": 0.8407}, {"candidate_id": "c0451", "lat": 37.38211588113636, "lon": -4.742920570302791, "match_status": "new-uncertain", "confidence": 0.0476}, {"candidate_id": "c0439", "lat": 37.19434683551236, "lon": -6.085520260301869, "match_status": "new-uncertain", "confidence": 0.4961}, {"candidate_id": "c0766", "lat": 38.5391869331372, "lon": -3.616368378497619, "match_status": "new-uncertain", "confidence": 0.7079}, {"candidate_id": "c0050", "lat": 37.57879761554894, "lon": -6.048770263874454, "match_status": "new-uncertain", "confidence": 0.5659}, {"candidate_id": "c0038", "lat": 37.845851418677555, "lon": -5.358791462371105, "match_status": "new-uncertain", "confidence": 0.8475}, {"candidate_id": "c0432", "lat": 37.690240662927664, "lon": -5.71114757415343, "match_status": "new-uncertain", "confidence": 0.072}, {"candidate_id": "c0646", "lat": 38.3996429633658, "lon": -3.7694450947147393, "match_status": "new-uncertain", "confidence": 0.0637}, {"candidate_id": "c0423", "lat": 38.225333100148205, "lon": -5.0927821750285815, "match_status": "new-uncertain", "confidence": 0.0272}, {"candidate_id": "c0613", "lat": 38.06404083664509, "lon": -4.103672086391434, "match_status": "new-uncertain", "confidence": 0.2189}, {"candidate_id": "c0692", "lat": 37.81173793338336, "lon": -2.7836226054559456, "match_status": "new-uncertain", "confidence": 0.257}, {"candidate_id": "c0283", "lat": 38.014553953786034, "lon": -4.557797748590947, "match_status": "new-uncertain", "confidence": 0.1185}, {"candidate_id": "c0381", "lat": 37.734049328407814, "lon": -4.874396467577683, "match_status": "new-uncertain", "confidence": 0.036}, {"candidate_id": "c0242", "lat": 37.51074142409427, "lon": -6.043164112044916, "match_status": "new-uncertain", "confidence": 0.1694}, {"candidate_id": "c0435", "lat": 37.96048592982567, "lon": -4.4916759950030345, "match_status": "new-uncertain", "confidence": 0.0436}, {"candidate_id": "c0250", "lat": 37.63228319073909, "lon": -6.054073260713582, "match_status": "new-uncertain", "confidence": 0.1882}, {"candidate_id": "c0485", "lat": 37.96245146991582, "lon": -5.295276795969723, "match_status": "new-uncertain", "confidence": 0.3316}, {"candidate_id": "c0397", "lat": 37.96246209752766, "lon": -5.294009854266254, "match_status": "new-uncertain", "confidence": 0.5215}, {"candidate_id": "c0277", "lat": 37.85609700801801, "lon": -5.370933563192339, "match_status": "new-uncertain", "confidence": 0.7063}, {"candidate_id": "c0133", "lat": 37.371208542787215, "lon": -5.992962490405649, "match_status": "new-uncertain", "confidence": 0.3265}, {"candidate_id": "c0298", "lat": 37.76315658997241, "lon": -5.895273272523677, "match_status": "new-uncertain", "confidence": 0.4507}, {"candidate_id": "c0336", "lat": 37.75958886383783, "lon": -5.512610294881002, "match_status": "new-uncertain", "confidence": 0.1644}, {"candidate_id": "c0141", "lat": 37.109332738684, "lon": -6.03926139949603, "match_status": "new-uncertain", "confidence": 0.4456}, {"candidate_id": "c0259", "lat": 38.15617527706198, "lon": -5.273457845885855, "match_status": "new-uncertain", "confidence": 0.119}, {"candidate_id": "c0097", "lat": 37.429149431939344, "lon": -6.007847570382462, "match_status": "new-uncertain", "confidence": 0.4104}, {"candidate_id": "c0734", "lat": 38.424957416791294, "lon": -2.7725312482611275, "match_status": "new-uncertain", "confidence": 0.0666}, {"candidate_id": "c0192", "lat": 37.28709335008262, "lon": -6.155728991512656, "match_status": "new-uncertain", "confidence": 0.2778}, {"candidate_id": "c0218", "lat": 37.10964478391092, "lon": -5.520333218645271, "match_status": "new-uncertain", "confidence": 0.1876}, {"candidate_id": "c0398", "lat": 37.758057484748235, "lon": -5.898441532115872, "match_status": "new-uncertain", "confidence": 0.0289}, {"candidate_id": "c0107", "lat": 37.56872486589865, "lon": -5.868631958389284, "match_status": "new-uncertain", "confidence": 0.3464}, {"candidate_id": "c0278", "lat": 37.98678788179798, "lon": -5.324820862925553, "match_status": "new-uncertain", "confidence": 0.4858}];
+
+// Raw file order clusters geographically (this batch happened to put
+// every new-confirmed candidate first, 13/62 of which sit in the known
+// Doñana river-mapping gap where the pipeline mistakes open coastline
+// for water candidates) -- a deterministic shuffle breaks that up so
+// review order is a fair sample instead of a run of the worst cases.
+function seededShuffle(arr, seed) {
+  const a = arr.slice();
+  let s = seed;
+  for (let i = a.length - 1; i > 0; i--) {
+    s = (s * 1103515245 + 12345) & 0x7fffffff;
+    const j = s % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const SHUFFLED_CANDIDATES = seededShuffle(CANDIDATES, 20260916);
+
+let labels = {};     // candidate_id -> {status, ts}
+let order = [];       // ids in current filter's display order
+let filter = 'unreviewed';
+let cursor = 0;
+let db = null;
+
+const byId = Object.fromEntries(CANDIDATES.map(c => [c.candidate_id, c]));
+
+function computeOrder() {
+  let ids = SHUFFLED_CANDIDATES.map(c => c.candidate_id);
+  if (filter === 'unreviewed') ids = ids.filter(id => !labels[id]);
+  else if (filter !== 'all') ids = ids.filter(id => byId[id].match_status === filter);
+  order = ids;
+  cursor = 0;
+}
+
+function tallies() {
+  const t = {yes:0, no:0, unsure:0};
+  for (const id in labels) {
+    const s = labels[id].status;
+    if (s === 'yes') t.yes++;
+    else if (s === 'no') t.no++;
+    else if (s === 'unsure') t.unsure++;
+  }
+  return t;
+}
+
+function renderHeader() {
+  const total = CANDIDATES.length;
+  const reviewed = Object.keys(labels).length;
+  document.getElementById('progressLabel').textContent = `${reviewed} / ${total}`;
+  const pct = total ? (reviewed/total*100) : 0;
+  document.getElementById('progressTrack').innerHTML =
+    `<div style="width:${pct}%; background:var(--river);"></div>`;
+  const t = tallies();
+  document.getElementById('tallyYes').textContent = t.yes;
+  document.getElementById('tallyNo').textContent = t.no;
+  document.getElementById('tallyUnsure').textContent = t.unsure;
+}
+
+function renderCard() {
+  const main = document.getElementById('main');
+  document.getElementById('idLabel').textContent = '';
+  if (order.length === 0) {
+    main.innerHTML = `<div class="done-screen">
+      <h2>Nothing left in this view</h2>
+      <p>Switch filters above, or come back once more candidates are added to the review batch.</p>
+    </div>`;
+    return;
+  }
+  if (cursor >= order.length) cursor = order.length - 1;
+  const id = order[cursor];
+  const c = byId[id];
+  const label = labels[id];
+  const statusClass = c.match_status === 'new-confirmed' ? 'confirmed' : 'uncertain';
+  const statusText = c.match_status === 'new-confirmed' ? 'New-confirmed' : 'New-uncertain';
+  // Known failure mode (found 2026-09-16): candidates west of -6.2deg sit
+  // in a river-mapping gap near the Doñana coast where the pipeline has
+  // mistaken open coastline for a water candidate -- flagging it here
+  // rather than leaving it a silent mystery in the image.
+  const likelyOpenWater = c.lon < -6.2 || c.confidence >= 0.999;
+
+  main.innerHTML = `
+    <div class="stage">
+      <div class="imgwrap">
+        <img src="${id}.jpg" alt="PNOA crop for ${id}" loading="eager">
+        <div class="navhint"><span>${cursor+1} / ${order.length} in view</span><span>${id}</span></div>
+      </div>
+      <div class="details">
+        <div class="candid mono">${c.lat.toFixed(5)}, ${c.lon.toFixed(5)}</div>
+        <div class="chip ${statusClass}">${statusText}</div>
+        ${likelyOpenWater ? '<div class="chip" style="background:var(--stopped-soft);color:var(--stopped);margin-left:6px;">⚠ possible open-water/coastal false positive</div>' : ''}
+        <div class="metarow">
+          <span>confidence <b>${c.confidence.toFixed(3)}</b></span>
+        </div>
+        <div class="actions">
+          <button class="actbtn yes ${label?.status==='yes'?'current-label':''}" data-action="yes">Real dam / barrier <span class="key">Y</span></button>
+          <button class="actbtn no ${label?.status==='no'?'current-label':''}" data-action="no">Not a dam <span class="key">N</span></button>
+          <button class="actbtn unsure ${label?.status==='unsure'?'current-label':''}" data-action="unsure">Can't tell <span class="key">U</span></button>
+        </div>
+        <div class="jumpnav">
+          <button class="navbtn" id="prevBtn">&larr; back</button>
+          <button class="navbtn" id="skipBtn">skip &rarr;</button>
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('idLabel').textContent = id;
+  main.querySelectorAll('.actbtn').forEach(btn => {
+    btn.addEventListener('click', () => label_candidate(id, btn.dataset.action));
+  });
+  document.getElementById('prevBtn').addEventListener('click', () => { if (cursor>0){cursor--; renderCard();} });
+  document.getElementById('skipBtn').addEventListener('click', () => advance());
+}
+
+function advance() {
+  // Re-derive the order (an unreviewed item just labeled should drop out of that view)
+  const wasFilter = filter;
+  computeOrder();
+  filter = wasFilter;
+  if (order.length === 0) { renderCard(); return; }
+  cursor = Math.min(cursor, order.length - 1);
+  renderCard();
+}
+
+async function label_candidate(id, status) {
+  labels[id] = {status, ts: Date.now()};
+  renderHeader();
+  if (db) {
+    try {
+      await db.collection('labels').doc(id).set({status, ts: Date.now()});
+    } catch (e) { /* keep local state even if the write fails */ }
+  }
+  if (filter === 'unreviewed') {
+    // stays in place; item drops from the unreviewed list
+    computeOrder();
+    renderCard();
+  } else {
+    advance();
+  }
+}
+
+document.getElementById('filters').addEventListener('click', (e) => {
+  const btn = e.target.closest('.filter-btn');
+  if (!btn) return;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filter = btn.dataset.f;
+  computeOrder();
+  renderCard();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (order.length === 0) return;
+  const id = order[cursor];
+  if (e.key === 'y' || e.key === 'Y') label_candidate(id, 'yes');
+  else if (e.key === 'n' || e.key === 'N') label_candidate(id, 'no');
+  else if (e.key === 'u' || e.key === 'U') label_candidate(id, 'unsure');
+  else if (e.key === 'ArrowLeft') { if (cursor>0){cursor--; renderCard();} }
+  else if (e.key === 'ArrowRight') advance();
+});
+
+async function init() {
+  try {
+    db = await claude.use('db');
+  } catch (e) { db = null; }
+  if (db) {
+    try {
+      const snap = await db.collection('labels').get();
+      snap.docs.forEach(d => { labels[d.id] = d.data(); });
+    } catch (e) { /* start empty */ }
+  }
+  computeOrder();
+  renderHeader();
+  renderCard();
+}
+init();
+</script>
